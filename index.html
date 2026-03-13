@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Nagpur Smart City — AI Command Center</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{
+  --bg:#020408;--bg2:#050d14;
+  --panel:rgba(5,20,35,0.85);
+  --border:rgba(0,200,255,0.12);--border2:rgba(0,200,255,0.28);
+  --cyan:#00c8ff;--cyan2:#00ffea;
+  --orange:#ff6a00;--gold:#ffb300;
+  --green:#00ff9d;--red:#ff2d55;--yellow:#ffe600;
+  --text:#b8dff0;--text2:#d0eeff;--muted:#2a5570;
+  --fd:'Orbitron',monospace;--fb:'Rajdhani',sans-serif;--fm:'Share Tech Mono',monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text2);font-family:var(--fb);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);}
+.bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(rgba(0,200,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,255,0.04) 1px,transparent 1px);
+  background-size:60px 60px;animation:gridMove 20s linear infinite;}
+@keyframes gridMove{0%{background-position:0 0;}100%{background-position:60px 60px;}}
+.particle{position:fixed;border-radius:50%;pointer-events:none;z-index:0;animation:floatUp linear infinite;}
+@keyframes floatUp{0%{transform:translateY(100vh) scale(0);opacity:0;}10%{opacity:1;}90%{opacity:1;}100%{transform:translateY(-10vh) scale(1.5);opacity:0;}}
+
+/* ── SIDEBAR ── */
+#sidebar{position:fixed;left:0;top:0;bottom:0;width:80px;background:rgba(2,8,16,0.97);
+  border-right:1px solid var(--border2);z-index:1000;
+  display:flex;flex-direction:column;align-items:center;padding:16px 0;gap:4px;backdrop-filter:blur(20px);}
+.sb-logo{width:50px;height:50px;background:linear-gradient(135deg,var(--orange),var(--gold));border-radius:12px;
+  display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px;
+  box-shadow:0 0 20px rgba(255,106,0,0.5);cursor:pointer;transition:transform .2s;}
+.sb-logo:hover{transform:scale(1.08);}
+.sb-divider{width:40px;height:1px;background:var(--border2);margin:8px 0;}
+.sb-btn{width:56px;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  border:1px solid transparent;border-radius:10px;cursor:pointer;transition:all .25s;position:relative;}
+.sb-btn:hover,.sb-btn.active{background:rgba(0,200,255,0.08);border-color:var(--border2);box-shadow:0 0 15px rgba(0,200,255,0.15);}
+.sb-icon{font-size:22px;transition:transform .2s;}
+.sb-btn:hover .sb-icon,.sb-btn.active .sb-icon{transform:scale(1.12);filter:drop-shadow(0 0 6px var(--cyan));}
+.sb-label{font-size:7px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;font-family:var(--fm);}
+.sb-btn.active .sb-label{color:var(--cyan);}
+.sb-tooltip{position:absolute;left:68px;background:rgba(0,10,20,0.97);border:1px solid var(--border2);
+  border-radius:6px;padding:6px 12px;font-size:11px;color:var(--cyan);white-space:nowrap;
+  font-family:var(--fm);opacity:0;pointer-events:none;transition:opacity .2s;letter-spacing:1px;}
+.sb-btn:hover .sb-tooltip{opacity:1;}
+.sb-bottom{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.sb-clock{font-family:var(--fd);font-size:9px;color:var(--gold);letter-spacing:1px;text-align:center;line-height:1.8;}
+.sb-badge{position:absolute;top:6px;right:6px;background:var(--red);color:#fff;
+  font-size:8px;font-family:var(--fm);padding:1px 5px;border-radius:8px;}
+
+/* ── TOPBAR ── */
+#topbar{position:fixed;top:0;left:80px;right:0;height:56px;
+  background:rgba(2,8,16,0.97);border-bottom:1px solid var(--border2);
+  z-index:999;display:flex;align-items:center;padding:0 24px;gap:16px;backdrop-filter:blur(20px);}
+.tb-title{font-family:var(--fd);font-size:14px;font-weight:700;color:var(--cyan);
+  letter-spacing:3px;text-transform:uppercase;text-shadow:0 0 20px rgba(0,200,255,0.5);}
+.glitch{position:relative;}
+.glitch::after{content:attr(data-text);position:absolute;left:2px;top:0;
+  color:var(--orange);clip-path:polygon(0 0,100% 0,100% 35%,0 35%);
+  animation:glitch 4s infinite;opacity:.6;}
+@keyframes glitch{0%,90%,100%{clip-path:polygon(0 0,100% 0,100% 35%,0 35%);}
+  92%{clip-path:polygon(0 65%,100% 65%,100% 100%,0 100%);left:-2px;}
+  94%{clip-path:polygon(0 20%,100% 20%,100% 50%,0 50%);left:2px;}}
+.tb-sub{font-size:10px;color:var(--muted);letter-spacing:2px;font-family:var(--fm);}
+.tb-sep{width:1px;height:28px;background:var(--border2);}
+.tb-ticker{flex:1;overflow:hidden;display:flex;align-items:center;
+  mask-image:linear-gradient(90deg,transparent,black 8%,black 92%,transparent);}
+.tb-ticker-inner{display:flex;gap:32px;animation:tickerScroll 28s linear infinite;white-space:nowrap;}
+@keyframes tickerScroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+.tb-tick{font-size:11px;color:var(--muted);font-family:var(--fm);}
+.tb-tick b{color:var(--cyan2);}
+.tb-right{display:flex;align-items:center;gap:12px;margin-left:auto;flex-shrink:0;}
+.live-chip{display:flex;align-items:center;gap:6px;background:rgba(0,255,157,0.08);
+  border:1px solid rgba(0,255,157,0.3);border-radius:20px;padding:4px 12px;
+  font-size:9px;color:var(--green);letter-spacing:2px;text-transform:uppercase;font-family:var(--fm);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.2;}}
+#tb-clock{font-family:var(--fd);font-size:12px;color:var(--gold);letter-spacing:2px;}
+.notif-btn{position:relative;width:36px;height:36px;border-radius:8px;
+  background:rgba(0,200,255,0.06);border:1px solid var(--border2);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;
+  transition:all .2s;}
+.notif-btn:hover{border-color:var(--red);background:rgba(255,45,85,0.08);}
+.notif-badge{position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;
+  font-size:8px;font-family:var(--fm);width:15px;height:15px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;border:2px solid var(--bg);}
+
+/* FILTER */
+.filter-group{display:flex;align-items:center;gap:6px;}
+.filter-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;font-family:var(--fm);white-space:nowrap;}
+.fx-select{background:rgba(0,200,255,0.06);border:1px solid var(--border2);border-radius:6px;
+  color:var(--cyan);font-family:var(--fm);font-size:11px;padding:5px 28px 5px 10px;
+  outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2300c8ff'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 8px center;min-width:130px;transition:all .2s;}
+.fx-select:hover,.fx-select:focus{border-color:var(--cyan);box-shadow:0 0 10px rgba(0,200,255,0.2);}
+.fx-select option{background:#050d14;color:var(--text2);}
+.fx-apply{background:linear-gradient(135deg,rgba(0,200,255,0.15),rgba(0,255,234,0.08));
+  border:1px solid var(--border2);border-radius:6px;color:var(--cyan);font-family:var(--fm);
+  font-size:10px;padding:6px 14px;cursor:pointer;letter-spacing:1px;text-transform:uppercase;transition:all .2s;}
+.fx-apply:hover{background:rgba(0,200,255,0.2);box-shadow:0 0 12px rgba(0,200,255,0.25);}
+
+/* ── MAIN ── */
+#main{margin-left:80px;margin-top:56px;padding:24px;min-height:calc(100vh - 56px);position:relative;z-index:1;}
+.page{display:none;animation:pgIn .35s ease;}
+.page.active{display:block;}
+@keyframes pgIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.page-header{margin-bottom:20px;}
+.page-title{font-family:var(--fd);font-size:20px;font-weight:700;color:var(--text2);letter-spacing:3px;text-transform:uppercase;}
+.page-title span{color:var(--cyan);}
+.page-desc{font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--fm);letter-spacing:1px;}
+
+/* ── CARDS ── */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+  backdrop-filter:blur(10px);position:relative;overflow:hidden;transition:border-color .3s,box-shadow .3s;}
+.card::before{content:'';position:absolute;inset:0;border-radius:10px;
+  background:linear-gradient(135deg,rgba(0,200,255,0.03),transparent 60%);pointer-events:none;}
+.card:hover{border-color:rgba(0,200,255,0.3);box-shadow:0 0 25px rgba(0,200,255,0.07);}
+.card-title{font-family:var(--fd);font-size:9px;letter-spacing:3px;color:var(--muted);
+  text-transform:uppercase;padding:16px 20px 0;display:flex;align-items:center;gap:8px;}
+.card-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border2),transparent);}
+.card-action{font-size:10px;color:var(--cyan);cursor:pointer;letter-spacing:1px;font-family:var(--fm);white-space:nowrap;}
+.card-action:hover{text-shadow:0 0 8px var(--cyan);}
+.fx-hr{border:none;height:1px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);margin:12px 0;opacity:.25;}
+
+/* ── NOTIFICATIONS ── */
+.notif-panel{position:fixed;top:56px;right:0;bottom:0;width:360px;
+  background:rgba(2,8,16,0.98);border-left:1px solid var(--border2);z-index:90;
+  transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;box-shadow:var(--shadow-lg);backdrop-filter:blur(20px);}
+.notif-panel.open{transform:translateX(0);}
+.notif-head{padding:16px 20px;border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;}
+.notif-head-title{font-family:var(--fd);font-size:11px;color:var(--cyan);letter-spacing:2px;}
+.notif-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;}
+.notif-close:hover{color:var(--red);}
+.notif-body{flex:1;overflow-y:auto;padding:12px;}
+.notif-item{padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;
+  border-left:3px solid;cursor:pointer;transition:background .15s;}
+.notif-item.critical{border-left-color:var(--red);}
+.notif-item.warning{border-left-color:var(--yellow);}
+.notif-item.normal{border-left-color:var(--green);}
+.notif-item:hover{background:rgba(0,200,255,0.05);}
+.notif-dept{font-size:9px;letter-spacing:2px;text-transform:uppercase;font-family:var(--fm);margin-bottom:4px;}
+.critical .notif-dept{color:var(--red);}.warning .notif-dept{color:var(--yellow);}.normal .notif-dept{color:var(--green);}
+.notif-msg{font-size:12px;color:var(--text);line-height:1.5;}
+.notif-time{font-size:9px;color:var(--muted);font-family:var(--fm);margin-top:4px;}
+
+/* ── STATUS BANNER ── */
+.status-banner{display:flex;align-items:center;gap:16px;padding:12px 20px;margin-bottom:20px;
+  background:var(--panel);border:1px solid var(--border);border-radius:10px;backdrop-filter:blur(10px);}
+.banner-badge{display:flex;align-items:center;gap:7px;padding:5px 14px;border-radius:20px;
+  font-size:10px;font-weight:700;font-family:var(--fm);letter-spacing:2px;text-transform:uppercase;flex-shrink:0;}
+.banner-ok{background:rgba(0,255,157,0.1);color:var(--green);border:1px solid rgba(0,255,157,0.3);}
+.banner-warn{background:rgba(255,230,0,0.1);color:var(--yellow);border:1px solid rgba(255,230,0,0.3);}
+.banner-crit{background:rgba(255,45,85,0.1);color:var(--red);border:1px solid rgba(255,45,85,0.3);}
+.banner-text{font-size:12px;color:var(--text);flex:1;font-family:var(--fm);}
+.banner-time{font-family:var(--fm);font-size:10px;color:var(--muted);}
+
+/* ── OVERVIEW GRID ── */
+.overview-grid{display:grid;grid-template-columns:260px 1fr 1fr 260px;grid-template-rows:auto auto;gap:16px;}
+.score-col{grid-column:1;grid-row:1/3;padding:20px;}
+.alerts-col{grid-column:4;grid-row:1/3;padding:0;}
+.stat-row{grid-column:2/4;grid-row:1;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.charts-2col{grid-column:2/4;grid-row:2;}
+
+/* RING */
+.ring-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px 0;}
+.ring-pos{position:relative;width:170px;height:170px;}
+.ring-svg{transform:rotate(-90deg);filter:drop-shadow(0 0 12px var(--cyan));}
+.ring-track{fill:none;stroke:rgba(0,200,255,0.08);stroke-width:10;}
+.ring-fill{fill:none;stroke-width:10;stroke-linecap:round;stroke-dasharray:440;stroke-dashoffset:440;transition:stroke-dashoffset 2.5s cubic-bezier(.4,0,.2,1);}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+#ov-score-num{font-family:var(--fd);font-size:46px;font-weight:900;color:var(--cyan);line-height:1;}
+.score-status{font-family:var(--fd);font-size:10px;letter-spacing:3px;text-transform:uppercase;margin-top:4px;}
+.ai-box{background:rgba(0,200,255,0.04);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-top:10px;}
+.ai-label{font-size:9px;letter-spacing:2px;color:var(--cyan);text-transform:uppercase;margin-bottom:6px;font-family:var(--fm);}
+.ai-text{font-size:12px;color:var(--text);line-height:1.6;}
+
+/* HEALTH BARS */
+.hbars{margin-top:12px;}
+.hbar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.hbar-lbl{font-size:10px;color:var(--muted);width:60px;font-family:var(--fm);}
+.hbar-track{flex:1;height:3px;background:rgba(0,200,255,0.08);border-radius:2px;overflow:hidden;}
+.hbar-fill{height:3px;border-radius:2px;transition:width 1.5s cubic-bezier(.4,0,.2,1);}
+.hbar-val{font-size:10px;color:var(--text);width:30px;text-align:right;font-family:var(--fm);}
+
+/* KPI STAT CARDS */
+.stat-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;
+  cursor:pointer;transition:all .25s;position:relative;overflow:hidden;}
+.stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--card-accent),transparent);opacity:.7;}
+.stat-card:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,200,255,0.1);border-color:rgba(0,200,255,0.3);}
+.stat-icon{font-size:26px;margin-bottom:8px;}
+.stat-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;font-family:var(--fm);}
+.stat-val{font-family:var(--fd);font-size:26px;font-weight:700;line-height:1.1;margin:4px 0;}
+.stat-sub{font-size:10px;color:var(--muted);font-family:var(--fm);}
+.stat-trend{font-size:9px;padding:2px 7px;border-radius:4px;font-family:var(--fm);font-weight:700;margin-top:4px;display:inline-block;}
+.trend-up{background:rgba(0,255,157,0.12);color:var(--green);}
+.trend-down{background:rgba(255,45,85,0.12);color:var(--red);}
+.trend-neutral{background:rgba(0,200,255,0.08);color:var(--muted);}
+
+/* ALERTS */
+.alert-item{border-left:3px solid;border-radius:0 6px 6px 0;background:rgba(5,20,35,0.6);
+  padding:10px 12px;margin-bottom:8px;animation:slideRight .3s ease;}
+@keyframes slideRight{from{opacity:0;transform:translateX(12px);}to{opacity:1;transform:translateX(0);}}
+.alert-item.critical{border-color:var(--red);}
+.alert-item.warning{border-color:var(--yellow);}
+.alert-item.normal{border-color:var(--green);}
+.a-top{display:flex;justify-content:space-between;margin-bottom:3px;}
+.a-badge{font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:2px 6px;border-radius:3px;font-family:var(--fm);}
+.critical .a-badge{background:rgba(255,45,85,0.15);color:var(--red);}
+.warning  .a-badge{background:rgba(255,230,0,0.1);color:var(--yellow);}
+.normal   .a-badge{background:rgba(0,255,157,0.1);color:var(--green);}
+.a-time{font-size:9px;color:var(--muted);font-family:var(--fm);}
+.a-msg{font-size:11px;color:var(--text);line-height:1.4;}
+
+/* DEPT TABLE */
+.fx-table{width:100%;border-collapse:collapse;}
+.fx-table th{text-align:left;padding:10px 16px;font-size:9px;font-weight:600;text-transform:uppercase;
+  letter-spacing:2px;color:var(--muted);font-family:var(--fm);background:rgba(0,200,255,0.03);border-bottom:1px solid var(--border2);}
+.fx-table td{padding:11px 16px;font-size:12px;border-bottom:1px solid var(--border);color:var(--text);}
+.fx-table tr:hover td{background:rgba(0,200,255,0.03);}
+.sp{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;
+  font-size:9px;font-weight:700;font-family:var(--fm);letter-spacing:1px;text-transform:uppercase;}
+.sp-ok{background:rgba(0,255,157,0.1);color:var(--green);}
+.sp-warn{background:rgba(255,230,0,0.1);color:var(--yellow);}
+.sp-crit{background:rgba(255,45,85,0.1);color:var(--red);}
+.sp-info{background:rgba(0,200,255,0.1);color:var(--cyan);}
+
+/* ── ACTIONS PAGE ── */
+.actions-grid{display:grid;grid-template-columns:1fr 320px;gap:16px;}
+.action-item{display:flex;align-items:center;gap:14px;padding:14px 20px;
+  border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;}
+.action-item:last-child{border-bottom:none;}
+.action-item:hover{background:rgba(0,200,255,0.04);}
+.action-num{width:32px;height:32px;border-radius:8px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:13px;font-weight:700;}
+.action-body{flex:1;}
+.action-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:2px;}
+.action-detail{font-size:10px;color:var(--muted);font-family:var(--fm);}
+.action-btn{font-size:10px;font-weight:700;padding:5px 12px;border-radius:6px;border:none;
+  cursor:pointer;transition:all .15s;font-family:var(--fm);letter-spacing:1px;text-transform:uppercase;}
+.ab-red{background:rgba(255,45,85,0.15);color:var(--red);border:1px solid rgba(255,45,85,0.3);}
+.ab-red:hover{background:var(--red);color:#fff;}
+.ab-yellow{background:rgba(255,230,0,0.12);color:var(--yellow);border:1px solid rgba(255,230,0,0.3);}
+.ab-yellow:hover{background:var(--yellow);color:#000;}
+.ab-green{background:rgba(0,255,157,0.1);color:var(--green);border:1px solid rgba(0,255,157,0.3);}
+.ab-green:hover{background:var(--green);color:#000;}
+
+/* ── REPORTS ── */
+.report-row{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--border);}
+.report-row:last-child{border-bottom:none;}
+.report-icon{width:38px;height:38px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;}
+.report-title{font-size:13px;font-weight:600;color:var(--text2);}
+.report-date{font-size:10px;color:var(--muted);font-family:var(--fm);margin-top:2px;}
+.report-dl{margin-left:auto;font-size:10px;font-weight:700;padding:5px 12px;border-radius:6px;
+  background:rgba(0,200,255,0.08);color:var(--cyan);border:1px solid var(--border2);cursor:pointer;
+  font-family:var(--fm);letter-spacing:1px;transition:all .15s;}
+.report-dl:hover{background:rgba(0,200,255,0.2);box-shadow:0 0 10px rgba(0,200,255,0.2);}
+
+/* ── TRAFFIC PAGE ── */
+.traffic-grid{display:grid;grid-template-columns:1fr 1fr 300px;gap:16px;}
+.map-svg-wrap{width:100%;height:260px;position:relative;overflow:hidden;}
+.road-node{cursor:pointer;}
+
+/* ── ENVIRONMENT ── */
+.env-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.zone-big{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px;
+  cursor:pointer;transition:all .25s;text-align:center;}
+.zone-big:hover{border-color:var(--cyan);transform:translateY(-4px);box-shadow:0 10px 40px rgba(0,200,255,0.1);}
+.zone-aqi-num{font-family:var(--fd);font-size:54px;font-weight:900;line-height:1;}
+.zone-lbl{font-size:12px;font-weight:600;color:var(--text2);margin-top:4px;}
+.zone-sublbl{font-size:9px;letter-spacing:3px;color:var(--muted);font-family:var(--fm);margin-top:2px;}
+.aqi-segs{display:flex;gap:2px;margin-top:8px;}
+.aqi-seg{flex:1;height:4px;border-radius:2px;}
+
+/* ── ENERGY ── */
+.energy-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+
+/* ── TRANSPORT ── */
+.transport-grid{display:grid;grid-template-columns:1fr 300px;gap:16px;}
+.route-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px 18px;
+  display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .2s;margin-bottom:10px;}
+.route-card:hover{border-color:var(--cyan);background:rgba(0,200,255,0.05);}
+.route-num{width:44px;height:44px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--fd);font-size:16px;font-weight:700;flex-shrink:0;}
+.route-name{font-size:14px;font-weight:600;color:var(--text2);}
+.route-path{font-size:10px;color:var(--muted);font-family:var(--fm);margin-top:2px;}
+.route-pax{font-family:var(--fd);font-size:18px;font-weight:700;text-align:right;}
+.route-status{font-size:9px;letter-spacing:1px;text-transform:uppercase;font-family:var(--fm);}
+
+/* ── AI CHAT ── */
+.ai-page-grid{display:grid;grid-template-columns:1fr 340px;gap:16px;height:calc(100vh - 150px);}
+.chat-panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;}
+.chat-header{padding:16px 20px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:12px;background:rgba(0,200,255,0.03);}
+.ai-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--cyan2));
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  box-shadow:0 0 15px rgba(0,200,255,0.4);animation:breathe 3s ease-in-out infinite;}
+@keyframes breathe{0%,100%{box-shadow:0 0 15px rgba(0,200,255,0.4);}50%{box-shadow:0 0 30px rgba(0,200,255,0.7);}}
+.ai-name{font-family:var(--fd);font-size:13px;color:var(--cyan);letter-spacing:1px;}
+.ai-status-text{font-size:10px;color:var(--green);font-family:var(--fm);letter-spacing:1px;}
+#chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px;
+  scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.msg{max-width:80%;animation:msgIn .3s ease;}
+@keyframes msgIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.msg.ai{align-self:flex-start;}.msg.user{align-self:flex-end;}
+.msg-bubble{padding:12px 16px;border-radius:12px;font-size:13px;line-height:1.6;}
+.msg.ai .msg-bubble{background:rgba(0,200,255,0.08);border:1px solid var(--border);border-bottom-left-radius:3px;color:var(--text2);}
+.msg.user .msg-bubble{background:linear-gradient(135deg,rgba(0,200,255,0.2),rgba(0,255,234,0.1));
+  border:1px solid rgba(0,200,255,0.3);border-bottom-right-radius:3px;color:var(--text2);}
+.msg-time{font-size:9px;color:var(--muted);margin-top:4px;font-family:var(--fm);}
+.msg.user .msg-time{text-align:right;}
+.chat-input-row{padding:14px;border-top:1px solid var(--border);display:flex;gap:8px;}
+#chat-input{flex:1;background:rgba(0,200,255,0.05);border:1px solid var(--border);border-radius:8px;
+  padding:10px 16px;color:var(--text2);font-family:var(--fb);font-size:13px;outline:none;transition:border-color .2s;}
+#chat-input:focus{border-color:var(--cyan);}
+#chat-input::placeholder{color:var(--muted);}
+#chat-send{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,var(--cyan),var(--cyan2));
+  border:none;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+#chat-send:hover{transform:scale(1.06);box-shadow:0 0 20px rgba(0,200,255,0.5);}
+.quick-btn{background:rgba(0,200,255,0.05);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;cursor:pointer;font-size:12px;color:var(--text);transition:all .2s;text-align:left;
+  font-family:var(--fb);margin-bottom:6px;width:100%;display:block;}
+.quick-btn:hover{border-color:var(--cyan);background:rgba(0,200,255,0.1);color:var(--cyan);}
+.typing-dots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--cyan);
+  margin:0 2px;animation:typeDot 1.2s infinite;}
+.typing-dots span:nth-child(2){animation-delay:.2s;}.typing-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes typeDot{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-5px);}}
+
+/* ── MAP PAGE ── */
+.map-page-grid{display:grid;grid-template-columns:1fr 280px;gap:16px;height:calc(100vh - 160px);}
+.map-container{background:var(--panel);border:1px solid var(--border);border-radius:10px;overflow:hidden;position:relative;display:flex;flex-direction:column;}
+.map-sensor-bar{display:flex;gap:6px;padding:12px 16px;border-bottom:1px solid var(--border);background:rgba(0,200,255,0.02);flex-wrap:wrap;}
+.msb{background:rgba(0,200,255,0.05);border:1px solid var(--border);border-radius:20px;
+  padding:4px 14px;cursor:pointer;font-size:10px;color:var(--muted);font-family:var(--fm);
+  transition:all .2s;letter-spacing:1px;text-transform:uppercase;}
+.msb.active,.msb:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,200,255,0.12);}
+.map-sidebar{display:flex;flex-direction:column;gap:8px;overflow-y:auto;}
+.map-legend{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 14px;flex-shrink:0;}
+.leg-title{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;font-family:var(--fm);margin-bottom:8px;}
+.leg-row{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;color:var(--text);}
+.leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.mzl-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px 12px;
+  cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:10px;}
+.mzl-card:hover,.mzl-card.sel{border-color:var(--cyan);background:rgba(0,200,255,0.07);}
+.mzl-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.mzl-name{font-size:12px;font-weight:600;color:var(--text2);flex:1;}
+.mzl-val{font-family:var(--fd);font-size:18px;font-weight:700;}
+
+/* Leaflet dark overrides */
+.leaflet-container{background:#020c18!important;}
+.leaflet-control-zoom a{background:rgba(5,20,35,0.97)!important;color:var(--cyan)!important;border-color:var(--border2)!important;}
+.leaflet-control-zoom a:hover{background:rgba(0,200,255,0.15)!important;}
+.leaflet-bar{border:1px solid var(--border2)!important;box-shadow:0 0 15px rgba(0,200,255,0.12)!important;}
+.leaflet-control-attribution{background:rgba(2,8,16,0.85)!important;color:var(--muted)!important;font-size:9px!important;}
+.leaflet-control-attribution a{color:var(--muted)!important;}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:transparent!important;box-shadow:none!important;border:none!important;}
+.leaflet-popup-content{margin:0!important;}
+
+/* SENSOR PANEL */
+.sensor-result{display:none;position:fixed;top:64px;right:16px;z-index:600;width:300px;
+  background:rgba(4,12,24,0.98);border:1px solid var(--border2);border-radius:10px;
+  backdrop-filter:blur(20px);box-shadow:0 8px 40px rgba(0,0,0,0.6),0 0 20px rgba(0,200,255,0.08);animation:pgIn .3s ease;}
+.sensor-result.open{display:block;}
+.sr-header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);}
+.sr-title{font-family:var(--fd);font-size:11px;color:var(--cyan);letter-spacing:2px;}
+.sr-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;}
+.sr-close:hover{color:var(--red);}
+.sr-body{padding:16px;}
+.sr-big{font-family:var(--fd);font-size:50px;font-weight:900;text-align:center;line-height:1;margin:8px 0;}
+.sr-label{text-align:center;font-size:10px;letter-spacing:3px;text-transform:uppercase;font-family:var(--fm);margin-bottom:12px;}
+.sr-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);}
+.sr-row:last-child{border-bottom:none;}
+.sr-k{font-size:10px;color:var(--muted);font-family:var(--fm);}
+.sr-v{font-family:var(--fd);font-size:12px;}
+
+/* MODALS */
+.modal-overlay{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.8);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;
+  padding:0;max-width:500px;width:90%;transform:scale(.9);transition:transform .3s;overflow:hidden;}
+.modal-overlay.open .modal-box{transform:scale(1);}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;
+  border-bottom:1px solid var(--border2);background:rgba(0,200,255,0.04);}
+.modal-title{font-family:var(--fd);font-size:13px;color:var(--cyan);letter-spacing:2px;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
+.modal-close:hover{color:var(--red);}
+.modal-body{padding:20px 24px;}
+.modal-stat{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);}
+.modal-stat:last-child{border-bottom:none;}
+.modal-stat-label{color:var(--muted);font-family:var(--fm);font-size:10px;letter-spacing:1px;}
+.modal-stat-val{font-family:var(--fd);font-size:13px;color:var(--text2);}
+
+/* ASSIGN FORM */
+.fx-textarea{width:100%;padding:8px 12px;border:1px solid var(--border2);border-radius:7px;
+  font-size:12px;font-family:var(--fb);height:70px;resize:none;outline:none;
+  background:rgba(0,200,255,0.05);color:var(--text2);}
+.fx-textarea::placeholder{color:var(--muted);}
+.fx-textarea:focus{border-color:var(--cyan);}
+
+/* CHARTS */
+.chart-h160{height:160px;}.chart-h200{height:200px;}.chart-h220{height:220px;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+@media(max-width:1200px){.overview-grid{grid-template-columns:1fr 1fr;}.stat-row,.charts-2col{grid-column:1/3;}.score-col,.alerts-col{grid-column:1/3;}}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+
+<!-- NOTIFICATIONS -->
+<div class="notif-panel" id="notif-panel">
+  <div class="notif-head">
+    <div class="notif-head-title">🔔 LIVE ALERTS</div>
+    <button class="notif-close" onclick="toggleNotif()">✕</button>
+  </div>
+  <div class="notif-body" id="notif-body"></div>
+</div>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sb-logo" onclick="navigate('overview')">🍊</div>
+  <div class="sb-divider"></div>
+  <div class="sb-btn active" data-page="overview" onclick="navigate('overview')">
+    <div class="sb-icon">🏙️</div><div class="sb-label">Overview</div>
+    <div class="sb-tooltip">City Overview</div>
+  </div>
+  <div class="sb-btn" data-page="actions" onclick="navigate('actions')">
+    <div class="sb-icon">✅</div><div class="sb-label">Actions</div>
+    <div class="sb-badge" id="action-badge">4</div>
+    <div class="sb-tooltip">Action Centre</div>
+  </div>
+  <div class="sb-btn" data-page="reports" onclick="navigate('reports')">
+    <div class="sb-icon">📋</div><div class="sb-label">Reports</div>
+    <div class="sb-tooltip">Reports</div>
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-btn" data-page="traffic" onclick="navigate('traffic')">
+    <div class="sb-icon">🚦</div><div class="sb-label">Traffic</div>
+    <div class="sb-tooltip">Traffic Control</div>
+  </div>
+  <div class="sb-btn" data-page="environment" onclick="navigate('environment')">
+    <div class="sb-icon">💨</div><div class="sb-label">Air</div>
+    <div class="sb-tooltip">Air Quality</div>
+  </div>
+  <div class="sb-btn" data-page="energy" onclick="navigate('energy')">
+    <div class="sb-icon">⚡</div><div class="sb-label">Energy</div>
+    <div class="sb-tooltip">Energy Grid</div>
+  </div>
+  <div class="sb-btn" data-page="transport" onclick="navigate('transport')">
+    <div class="sb-icon">🚌</div><div class="sb-label">Transit</div>
+    <div class="sb-tooltip">NMC Transit</div>
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-btn" data-page="ai" onclick="navigate('ai')">
+    <div class="sb-icon">🤖</div><div class="sb-label">AI</div>
+    <div class="sb-tooltip">AI Assistant</div>
+  </div>
+  <div class="sb-btn" data-page="map" onclick="navigate('map')">
+    <div class="sb-icon">🗺️</div><div class="sb-label">Map</div>
+    <div class="sb-tooltip">Live City Map</div>
+  </div>
+  <div class="sb-bottom">
+    <div class="sb-clock" id="sb-clock">--:--<br>--/--</div>
+  </div>
+</nav>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div>
+    <div class="tb-title glitch" data-text="NAGPUR SMART CITY">NAGPUR SMART CITY</div>
+    <div class="tb-sub">NMC · AI COMMAND CENTER · v2.0</div>
+  </div>
+  <div class="tb-sep"></div>
+  <div class="tb-ticker">
+    <div class="tb-ticker-inner">
+      <span class="tb-tick"><b>🍊</b> Orange City — Heart of India</span>
+      <span class="tb-tick"><b>📍</b> Zero Mile Stone — Geographic Centre</span>
+      <span class="tb-tick"><b>🏛️</b> Deekshabhoomi — Asia's Largest Stupa</span>
+      <span class="tb-tick"><b>🐯</b> Pench Tiger Reserve — Jungle Book Origins</span>
+      <span class="tb-tick"><b>🌿</b> Futala Lake — City's Blue Lung</span>
+      <span class="tb-tick"><b>🏟️</b> VCA Stadium — Cricket Hub</span>
+      <span class="tb-tick"><b>🍊</b> Orange City — Heart of India</span>
+      <span class="tb-tick"><b>📍</b> Zero Mile Stone — Geographic Centre</span>
+      <span class="tb-tick"><b>🏛️</b> Deekshabhoomi — Asia's Largest Stupa</span>
+      <span class="tb-tick"><b>🐯</b> Pench Tiger Reserve — Jungle Book Origins</span>
+    </div>
+  </div>
+  <div class="tb-right">
+    <div class="filter-group">
+      <span class="filter-label">Zone</span>
+      <select class="fx-select" id="filter-area">
+        <option value="">All Nagpur</option>
+        <option value="dharampeth">Dharampeth</option>
+        <option value="sitabuldi">Sitabuldi</option>
+        <option value="civillines">Civil Lines</option>
+        <option value="hingna">Hingna MIDC</option>
+        <option value="butibori">Butibori</option>
+        <option value="lakadganj">Lakadganj</option>
+        <option value="kamptee">Kamptee</option>
+        <option value="itwari">Itwari</option>
+        <option value="wardharoad">Wardha Road</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Sensor</span>
+      <select class="fx-select" id="filter-sensor">
+        <option value="aqi">💨 Air Quality</option>
+        <option value="traffic">🚦 Traffic</option>
+        <option value="energy">⚡ Energy</option>
+        <option value="transport">🚌 Transport</option>
+      </select>
+    </div>
+    <button class="fx-apply" onclick="applySensorFilter()">▶ ANALYZE</button>
+    <div class="tb-sep"></div>
+    <div class="notif-btn" onclick="toggleNotif()" id="notif-btn">🔔<div class="notif-badge" id="alert-count">3</div></div>
+    <div class="live-chip"><div class="live-dot"></div>LIVE</div>
+    <div id="tb-clock">--:--:--</div>
+  </div>
+</div>
+
+<!-- SENSOR RESULT -->
+<div class="sensor-result" id="sensor-result">
+  <div class="sr-header">
+    <div class="sr-title" id="sr-title">SENSOR DATA</div>
+    <button class="sr-close" onclick="document.getElementById('sensor-result').classList.remove('open')">✕</button>
+  </div>
+  <div class="sr-body">
+    <div class="sr-big" id="sr-big">—</div>
+    <div class="sr-label" id="sr-label">—</div>
+    <div id="sr-rows"></div>
+    <div style="height:80px;margin-top:12px;"><canvas id="sr-chart"></canvas></div>
+  </div>
+</div>
+
+<div id="main">
+
+<!-- ══ PAGE: OVERVIEW ══ -->
+<div class="page active" id="page-overview">
+  <div class="page-header">
+    <div class="page-title">City <span>Overview</span></div>
+    <div class="page-desc">// real-time urban intelligence — nagpur metropolitan area</div>
+  </div>
+  <!-- Banner -->
+  <div class="status-banner">
+    <div class="banner-badge banner-ok" id="banner-badge">● NOMINAL</div>
+    <div class="banner-text" id="banner-text">All city systems operating within normal parameters. No critical alerts active.</div>
+    <div class="banner-time" id="banner-time">Updated just now</div>
+  </div>
+  <div class="overview-grid">
+    <!-- Score -->
+    <div class="card score-col">
+      <div class="card-title">City Health Index</div>
+      <div class="ring-wrap">
+        <div class="ring-pos">
+          <svg class="ring-svg" width="170" height="170" viewBox="0 0 170 170">
+            <circle class="ring-track" cx="85" cy="85" r="70"/>
+            <circle class="ring-fill" id="ov-ring" cx="85" cy="85" r="70" stroke="var(--cyan)"/>
+          </svg>
+          <div class="ring-center">
+            <div id="ov-score-num">0</div>
+            <div style="font-size:10px;color:var(--muted);letter-spacing:2px;">/100</div>
+          </div>
+        </div>
+        <div class="score-status" id="ov-score-status" style="color:var(--cyan)">LOADING…</div>
+      </div>
+      <div class="hbars">
+        <div class="hbar-row"><div class="hbar-lbl">Traffic</div><div class="hbar-track"><div class="hbar-fill" id="hb-t" style="width:0%;background:var(--cyan);"></div></div><div class="hbar-val" id="hbv-t">—</div></div>
+        <div class="hbar-row"><div class="hbar-lbl">Air</div><div class="hbar-track"><div class="hbar-fill" id="hb-a" style="width:0%;background:var(--orange);"></div></div><div class="hbar-val" id="hbv-a">—</div></div>
+        <div class="hbar-row"><div class="hbar-lbl">Energy</div><div class="hbar-track"><div class="hbar-fill" id="hb-e" style="width:0%;background:var(--gold);"></div></div><div class="hbar-val" id="hbv-e">—</div></div>
+        <div class="hbar-row"><div class="hbar-lbl">Transit</div><div class="hbar-track"><div class="hbar-fill" id="hb-tr" style="width:0%;background:var(--green);"></div></div><div class="hbar-val" id="hbv-tr">—</div></div>
+      </div>
+      <div class="ai-box" style="margin-top:12px;">
+        <div class="ai-label">🤖 NOVA AI Insight</div>
+        <div class="ai-text" id="ov-ai-insight">Analyzing city data across all 47 monitoring stations…</div>
+      </div>
+    </div>
+    <!-- Stats -->
+    <div class="stat-row">
+      <div class="stat-card" style="--card-accent:var(--cyan);" onclick="openModal('traffic-modal')">
+        <div class="stat-icon">🚦</div><div class="stat-label">MG Road Traffic</div>
+        <div class="stat-val" id="s-traffic" style="color:var(--cyan)">—</div>
+        <div class="stat-sub">vehicles / hr</div>
+        <div class="stat-trend trend-neutral" id="s-traffic-t">—</div>
+      </div>
+      <div class="stat-card" style="--card-accent:var(--red);" onclick="openModal('aqi-modal')">
+        <div class="stat-icon">💨</div><div class="stat-label">Air Quality AQI</div>
+        <div class="stat-val" id="s-aqi" style="color:var(--red)">—</div>
+        <div class="stat-sub" id="s-aqi-label">loading…</div>
+      </div>
+      <div class="stat-card" style="--card-accent:var(--gold);" onclick="navigate('energy')">
+        <div class="stat-icon">⚡</div><div class="stat-label">MSEDCL Grid</div>
+        <div class="stat-val" id="s-energy" style="color:var(--gold)">—</div>
+        <div class="stat-sub">MW consumed</div>
+      </div>
+      <div class="stat-card" style="--card-accent:var(--green);" onclick="navigate('transport')">
+        <div class="stat-icon">🚌</div><div class="stat-label">NMC Passengers</div>
+        <div class="stat-val" id="s-transport" style="color:var(--green)">—</div>
+        <div class="stat-sub">today total</div>
+      </div>
+    </div>
+    <!-- Charts -->
+    <div class="card charts-2col" style="padding:0;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;">
+        <div style="padding:16px;border-right:1px solid var(--border);">
+          <div class="card-title" style="padding:0 0 10px;">Traffic Flow — MG Road</div>
+          <div class="chart-h160"><canvas id="ov-traffic-chart"></canvas></div>
+        </div>
+        <div style="padding:16px;">
+          <div class="card-title" style="padding:0 0 10px;">AQI Trend — Nagpur</div>
+          <div class="chart-h160"><canvas id="ov-aqi-chart"></canvas></div>
+        </div>
+      </div>
+    </div>
+    <!-- Alerts -->
+    <div class="card alerts-col" style="padding-bottom:0;">
+      <div class="card-title" style="margin-bottom:8px;">Live Incident Feed <span class="card-action" onclick="toggleNotif()">View All →</span></div>
+      <div style="padding:8px 16px;max-height:340px;overflow-y:auto;" id="ov-alerts"></div>
+    </div>
+  </div>
+  <!-- Dept Table -->
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title">Departmental Performance — Today</div>
+    <table class="fx-table" style="margin-top:8px;" id="dept-table-wrap">
+      <thead><tr><th>Department</th><th>Status</th><th>Score</th><th>Issues</th><th>Updated</th></tr></thead>
+      <tbody id="dept-table"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══ PAGE: ACTIONS ══ -->
+<div class="page" id="page-actions">
+  <div class="page-header"><div class="page-title">Action <span>Centre</span></div><div class="page-desc">// pending tasks and city alerts requiring response</div></div>
+  <div class="actions-grid">
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card"><div class="card-title">🚨 Critical Actions</div><div id="critical-actions"></div></div>
+      <div class="card"><div class="card-title">⚠️ Warnings</div><div id="warning-actions"></div></div>
+      <div class="card"><div class="card-title">📋 Routine Tasks</div><div id="routine-actions"></div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card" style="padding:20px;">
+        <div class="card-title" style="padding:0 0 14px;">Action Summary</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div style="padding:14px;border-radius:8px;background:rgba(255,45,85,0.08);border:1px solid rgba(255,45,85,0.2);text-align:center;">
+            <div style="font-family:var(--fd);font-size:30px;font-weight:900;color:var(--red);" id="ct-crit">0</div>
+            <div style="font-size:9px;color:var(--muted);font-family:var(--fm);margin-top:2px;letter-spacing:1px;">CRITICAL</div>
+          </div>
+          <div style="padding:14px;border-radius:8px;background:rgba(255,230,0,0.08);border:1px solid rgba(255,230,0,0.2);text-align:center;">
+            <div style="font-family:var(--fd);font-size:30px;font-weight:900;color:var(--yellow);" id="ct-warn">0</div>
+            <div style="font-size:9px;color:var(--muted);font-family:var(--fm);margin-top:2px;letter-spacing:1px;">WARNINGS</div>
+          </div>
+          <div style="padding:14px;border-radius:8px;background:rgba(0,255,157,0.07);border:1px solid rgba(0,255,157,0.2);text-align:center;">
+            <div style="font-family:var(--fd);font-size:30px;font-weight:900;color:var(--green);" id="ct-ok">3</div>
+            <div style="font-size:9px;color:var(--muted);font-family:var(--fm);margin-top:2px;letter-spacing:1px;">RESOLVED</div>
+          </div>
+          <div style="padding:14px;border-radius:8px;background:rgba(0,200,255,0.07);border:1px solid rgba(0,200,255,0.2);text-align:center;">
+            <div style="font-family:var(--fd);font-size:30px;font-weight:900;color:var(--cyan);" id="ct-pend">0</div>
+            <div style="font-size:9px;color:var(--muted);font-family:var(--fm);margin-top:2px;letter-spacing:1px;">PENDING</div>
+          </div>
+        </div>
+        <div class="chart-h160"><canvas id="action-chart"></canvas></div>
+      </div>
+      <div class="card" style="padding:20px;">
+        <div class="card-title" style="padding:0 0 12px;">Assign Task</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <select class="fx-select" style="width:100%;">
+            <option>Traffic Police</option><option>NMC Sanitation</option><option>MSEDCL</option><option>NMC Water</option><option>NMC Transit</option>
+          </select>
+          <select class="fx-select" style="width:100%;"><option>Critical</option><option>High</option><option>Normal</option></select>
+          <textarea class="fx-textarea" placeholder="Describe the task…"></textarea>
+          <button class="fx-apply" style="width:100%;padding:8px;">▶ ASSIGN TASK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: REPORTS ══ -->
+<div class="page" id="page-reports">
+  <div class="page-header"><div class="page-title">Reports & <span>Export</span></div><div class="page-desc">// generate and download city intelligence reports</div></div>
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:16px;">
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card" style="padding:20px;">
+        <div class="card-title" style="padding:0 0 14px;">Generate Report</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div><div style="font-size:9px;color:var(--muted);font-family:var(--fm);letter-spacing:1px;margin-bottom:5px;">REPORT TYPE</div>
+            <select class="fx-select" style="width:100%;"><option>Daily City Summary</option><option>Weekly Traffic Analysis</option><option>Monthly AQI Report</option><option>Energy Consumption</option><option>Incident Log</option></select>
+          </div>
+          <div><div style="font-size:9px;color:var(--muted);font-family:var(--fm);letter-spacing:1px;margin-bottom:5px;">DATE RANGE</div>
+            <select class="fx-select" style="width:100%;"><option>Today</option><option>Last 7 Days</option><option>Last 30 Days</option><option>This Quarter</option></select>
+          </div>
+          <div><div style="font-size:9px;color:var(--muted);font-family:var(--fm);letter-spacing:1px;margin-bottom:5px;">ZONE</div>
+            <select class="fx-select" style="width:100%;"><option>All Nagpur</option><option>Dharampeth</option><option>Sitabuldi</option><option>Hingna MIDC</option></select>
+          </div>
+          <div><div style="font-size:9px;color:var(--muted);font-family:var(--fm);letter-spacing:1px;margin-bottom:5px;">FORMAT</div>
+            <select class="fx-select" style="width:100%;"><option>PDF Summary</option><option>Excel Spreadsheet</option><option>CSV Data</option></select>
+          </div>
+        </div>
+        <button class="fx-apply" onclick="alert('Report generation initiated. PDF will be ready in 30 seconds.')">⬇ GENERATE & DOWNLOAD</button>
+      </div>
+      <div class="card" style="padding:20px;">
+        <div class="card-title" style="padding:0 0 10px;">7-Day City Performance Trend</div>
+        <div class="chart-h220"><canvas id="rpt-trend-chart"></canvas></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card">
+        <div class="card-title">Recent Reports</div>
+        <div id="report-list"></div>
+      </div>
+      <div class="card" style="padding:20px;">
+        <div class="card-title" style="padding:0 0 12px;">Quick Export</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button class="report-dl" style="width:100%;justify-content:center;display:flex;">📄 Today's Summary PDF</button>
+          <button class="report-dl" style="width:100%;justify-content:center;display:flex;">📊 Traffic Data CSV</button>
+          <button class="report-dl" style="width:100%;justify-content:center;display:flex;">🌿 AQI Monthly Report</button>
+          <button class="report-dl" style="width:100%;justify-content:center;display:flex;">⚡ Energy Usage Excel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: TRAFFIC ══ -->
+<div class="page" id="page-traffic">
+  <div class="page-header"><div class="page-title">Traffic <span>Control</span></div><div class="page-desc">// nagpur road network — real-time congestion analysis</div></div>
+  <div class="traffic-grid">
+    <div class="card" style="grid-column:1/3;padding:20px;">
+      <div class="card-title">Nagpur Road Network — Live Heat Map</div>
+      <div class="map-svg-wrap" id="traffic-map-svg"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card" style="padding:16px;"><div class="card-title">Road Status</div><div id="traffic-zone-list" style="padding:8px 0;"></div></div>
+      <div class="card" style="padding:16px;"><div class="card-title">Peak Hour Analysis</div><div class="chart-h160" style="padding-top:8px;"><canvas id="tr-peak-chart"></canvas></div></div>
+    </div>
+    <div class="card" style="grid-column:1/4;padding:20px;">
+      <div class="card-title">Hourly Traffic — All Major Roads</div>
+      <div class="chart-h200" style="padding-top:8px;"><canvas id="tr-main-chart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: ENVIRONMENT ══ -->
+<div class="page" id="page-environment">
+  <div class="page-header"><div class="page-title">Air <span>Quality</span></div><div class="page-desc">// nagpur environmental monitoring — zone-wise aqi analysis</div></div>
+  <div class="env-grid" id="env-zones"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
+    <div class="card" style="padding:16px;"><div class="card-title">AQI Trend — Last 7 Hours</div><div class="chart-h200" style="padding-top:8px;"><canvas id="env-trend-chart"></canvas></div></div>
+    <div class="card" style="padding:16px;"><div class="card-title">Pollutant Breakdown</div><div class="chart-h200" style="padding-top:8px;"><canvas id="env-pollutant-chart"></canvas></div></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: ENERGY ══ -->
+<div class="page" id="page-energy">
+  <div class="page-header"><div class="page-title">Energy <span>Grid</span></div><div class="page-desc">// msedcl nagpur division — smart grid monitoring</div></div>
+  <div class="energy-kpi" id="en-stat-cards"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+    <div class="card" style="padding:20px;"><div class="card-title">Grid Load — 24 Hours</div><div class="chart-h200" style="padding-top:8px;"><canvas id="en-load-chart"></canvas></div></div>
+    <div class="card" style="padding:20px;"><div class="card-title">Energy Mix — Nagpur</div><div class="chart-h200" style="padding-top:8px;"><canvas id="en-mix-chart"></canvas></div></div>
+  </div>
+  <div class="card" style="padding:20px;"><div class="card-title">Zone-wise Consumption (MW)</div><div class="chart-h200" style="padding-top:8px;"><canvas id="en-zone-chart"></canvas></div></div>
+</div>
+
+<!-- ══ PAGE: TRANSPORT ══ -->
+<div class="page" id="page-transport">
+  <div class="page-header"><div class="page-title">NMC <span>Transit</span></div><div class="page-desc">// nagpur municipal corporation — public transport network</div></div>
+  <div class="transport-grid">
+    <div>
+      <div class="card" style="padding:16px;margin-bottom:16px;"><div class="card-title">Passenger Load — Today</div><div class="chart-h200" style="padding-top:8px;"><canvas id="tp-load-chart"></canvas></div></div>
+      <div id="route-list"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div class="card" style="padding:16px;"><div class="card-title">Live Bus Status</div><div id="bus-status-list" style="padding:8px 0;"></div></div>
+      <div class="card" style="padding:16px;">
+        <div class="card-title">Metro Phase Map</div>
+        <div style="padding:12px 0;font-size:12px;color:var(--muted);font-family:var(--fm);line-height:2.2;">
+          <div>🟢 <span style="color:var(--text2)">Phase 1</span> — Automotive Sq ↔ Airport</div>
+          <div>🟡 <span style="color:var(--text2)">Phase 2</span> — Lokmanya Nagar ↔ Hingna</div>
+          <div>🔵 <span style="color:var(--text2)">Phase 3</span> — Planned 2027</div>
+          <div class="fx-hr"></div>
+          <div style="color:var(--cyan);font-family:var(--fd);font-size:10px;letter-spacing:2px;">METRO RIDERSHIP TODAY</div>
+          <div style="font-family:var(--fd);font-size:28px;color:var(--green);margin-top:4px;" id="metro-count">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: AI ══ -->
+<div class="page" id="page-ai">
+  <div class="page-header"><div class="page-title">AI <span>Assistant</span></div><div class="page-desc">// nova intelligence engine — ask anything about nagpur city</div></div>
+  <div class="ai-page-grid">
+    <div class="chat-panel">
+      <div class="chat-header">
+        <div class="ai-avatar">🤖</div>
+        <div><div class="ai-name">NOVA — NMC Intelligence</div><div class="ai-status-text">● Online · Nagpur City Data</div></div>
+      </div>
+      <div id="chat-messages">
+        <div class="msg ai"><div class="msg-bubble">Namaskar! 🍊 I'm NOVA, AI assistant for Nagpur Smart City. Ask me about traffic, AQI, energy, transport, or any city data. What can I help you with today?</div><div class="msg-time">System Boot</div></div>
+      </div>
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" placeholder="Ask about Nagpur city data…" onkeydown="if(event.key==='Enter')sendChat()"/>
+        <button id="chat-send" onclick="sendChat()">➤</button>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div class="card" style="padding:16px;">
+        <div class="card-title">Quick Queries</div>
+        <div style="padding-top:10px;">
+          <button class="quick-btn" onclick="askQ('What is the current AQI in Nagpur and which zones are most affected?')">💨 AQI status & zone analysis</button>
+          <button class="quick-btn" onclick="askQ('What is the traffic situation on MG Road right now?')">🚦 MG Road traffic update</button>
+          <button class="quick-btn" onclick="askQ('How is the energy grid performing today? Any overload zones?')">⚡ Energy grid status</button>
+          <button class="quick-btn" onclick="askQ('Which NMC bus route has the highest demand and any delays?')">🚌 Transit performance</button>
+          <button class="quick-btn" onclick="askQ('Give me the city health score breakdown and top 3 recommendations')">📊 Health score & tips</button>
+          <button class="quick-btn" onclick="askQ('Are there any critical incidents requiring immediate attention today?')">🚨 Critical incidents</button>
+          <button class="quick-btn" onclick="askQ('Tell me an interesting fact about Nagpur city')">🍊 Nagpur fact</button>
+        </div>
+      </div>
+      <div class="card" style="padding:16px;">
+        <div class="card-title">Live City Pulse</div>
+        <div style="padding-top:10px;" id="ai-pulse"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: MAP ══ -->
+<div class="page" id="page-map">
+  <div class="page-header"><div class="page-title">Live City <span>Map</span></div><div class="page-desc">// real satellite imagery — click any marker for sensor data</div></div>
+  <div class="map-page-grid">
+    <div class="map-container">
+      <div class="map-sensor-bar">
+        <button class="msb active" onclick="switchMapSensor('aqi',this)">💨 AQI</button>
+        <button class="msb" onclick="switchMapSensor('traffic',this)">🚦 Traffic</button>
+        <button class="msb" onclick="switchMapSensor('energy',this)">⚡ Energy</button>
+        <button class="msb" onclick="switchMapSensor('transport',this)">🚌 Transport</button>
+        <button class="msb" id="tile-toggle-btn" onclick="toggleTileMode()" style="margin-left:auto;">🛰 Satellite</button>
+      </div>
+      <div style="flex:1;position:relative;min-height:0;">
+        <div id="leaflet-map" style="width:100%;height:100%;min-height:400px;"></div>
+      </div>
+    </div>
+    <div class="map-sidebar">
+      <div class="map-legend">
+        <div class="leg-title">Legend</div>
+        <div class="leg-row"><div class="leg-dot" style="background:#00ff9d;"></div>Good (0–50)</div>
+        <div class="leg-row"><div class="leg-dot" style="background:#ffe600;"></div>Moderate (51–100)</div>
+        <div class="leg-row"><div class="leg-dot" style="background:#ff6a00;"></div>Unhealthy (101–150)</div>
+        <div class="leg-row"><div class="leg-dot" style="background:#ff2d55;"></div>Hazardous (150+)</div>
+      </div>
+      <div style="font-family:var(--fd);font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;padding:4px 2px;">Nagpur Zones</div>
+      <div id="map-zone-list"></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<!-- MODALS -->
+<div class="modal-overlay" id="traffic-modal" onclick="closeModal('traffic-modal')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head"><div class="modal-title" id="tm-title">🚦 TRAFFIC — MG ROAD</div><button class="modal-close" onclick="closeModal('traffic-modal')">✕</button></div>
+    <div class="modal-body" id="traffic-modal-body"></div>
+  </div>
+</div>
+<div class="modal-overlay" id="aqi-modal" onclick="closeModal('aqi-modal')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-head"><div class="modal-title">💨 AIR QUALITY — NAGPUR</div><button class="modal-close" onclick="closeModal('aqi-modal')">✕</button></div>
+    <div class="modal-body" id="aqi-modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+const S={aqi:null,alerts:[],poolIdx:0,factIdx:0,charts:{},chatHistory:[]};
+const HOURS=['6AM','7AM','8AM','9AM','10AM','11AM','12PM'];
+
+// ── CLOCK ──
+setInterval(()=>{
+  const n=new Date();
+  const t=n.toLocaleTimeString('en-IN',{hour12:false});
+  const d=n.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit'});
+  const el=document.getElementById('tb-clock'); if(el)el.textContent=t;
+  const sb=document.getElementById('sb-clock'); if(sb)sb.innerHTML=t.slice(0,5)+'<br>'+d;
+},1000);
+
+// ── CHART DEFAULTS ──
+Chart.defaults.color='#2a5570';
+Chart.defaults.font.family="'Share Tech Mono',monospace";
+Chart.defaults.font.size=9;
+
+function mkChart(id,cfg){
+  if(S.charts[id]){S.charts[id].destroy();delete S.charts[id];}
+  const c=document.getElementById(id); if(!c)return;
+  S.charts[id]=new Chart(c,cfg); return S.charts[id];
+}
+const GRID={grid:{color:'rgba(0,200,255,0.05)'},ticks:{color:'#2a5570'}};
+function lineChart(id,labels,datasets){
+  return mkChart(id,{type:'line',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:datasets.length>1,labels:{color:'#2a5570',boxWidth:10}}},
+    scales:{x:GRID,y:GRID}}});
+}
+function barChart(id,labels,data,color,label){
+  const mi=data.indexOf(Math.max(...data));
+  return mkChart(id,{type:'bar',data:{labels,datasets:[{label,data,backgroundColor:data.map((_,i)=>i===mi?'rgba(255,45,85,0.7)':color),borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:GRID,y:GRID}}});
+}
+function doughnutChart(id,labels,data,colors){
+  return mkChart(id,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'rgba(0,0,0,0.3)',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'64%',plugins:{legend:{position:'right',labels:{color:'#5a9ab0',boxWidth:10}}}}});
+}
+
+// ── DATA GENERATORS ──
+function genTraffic(){return [280,520,820,960,700,580,440].map(v=>v+~~(Math.random()*80-40));}
+function genEnergy(){return [180,260,380,440,400,340,290].map(v=>v+~~(Math.random()*40-20));}
+function genTransport(){return [900,2600,3800,3400,2200,1800,2400].map(v=>v+~~(Math.random()*200-100));}
+function genAQI(r){return [50,68,r||90,118,100,78,62].map(v=>Math.max(10,v+~~(Math.random()*12-6)));}
+function aqiLabel(a){return a<=50?'Good':a<=100?'Moderate':a<=150?'Unhealthy':a<=200?'Very Unhealthy':'Hazardous';}
+function aqiColor(a){return a<=50?'#00ff9d':a<=100?'#ffe600':a<=150?'#ff6a00':'#ff2d55';}
+
+// ── SCORES ──
+function calcScores(aqi,t,e,tr){
+  const f=a=>a<=50?95:a<=100?72:a<=150?50:30;
+  const tP=Math.max(...t),eA=e.reduce((a,b)=>a+b)/e.length,trP=Math.max(...tr);
+  return{traffic:tP>900?50:tP>700?68:84,air:f(aqi),energy:eA>420?58:eA>320?74:88,transport:trP>3500?60:trP>2800?72:85};
+}
+function overall(s){return Math.round(s.traffic*.25+s.air*.35+s.energy*.2+s.transport*.2);}
+
+function animScore(target,sc){
+  let cur=0;const step=target/60;
+  const ring=document.getElementById('ov-ring'),num=document.getElementById('ov-score-num'),st=document.getElementById('ov-score-status');
+  const c=target>=75?'#00ff9d':target>=50?'#ffe600':'#ff2d55';
+  const iv=setInterval(()=>{cur=Math.min(cur+step,target);const v=Math.round(cur);
+    num.textContent=v;ring.style.strokeDashoffset=440-(440*v/100);if(cur>=target)clearInterval(iv);},30);
+  ring.style.stroke=c;ring.style.filter=`drop-shadow(0 0 12px ${c})`;num.style.color=c;st.style.color=c;
+  st.textContent=target>=75?'✅ CITY HEALTHY':target>=50?'⚠️ NEEDS ATTENTION':'🚨 CRITICAL STATE';
+  // Health bars
+  const ab=(id,vid,val,col)=>setTimeout(()=>{
+    const el=document.getElementById(id);if(el){el.style.width=val+'%';el.style.background=col;}
+    const ve=document.getElementById(vid);if(ve)ve.textContent=val;
+  },350);
+  ab('hb-t','hbv-t',sc.traffic,sc.traffic>=75?'#00ff9d':sc.traffic>=50?'#ffe600':'#ff2d55');
+  ab('hb-a','hbv-a',sc.air,aqiColor(S.aqi||85));
+  ab('hb-e','hbv-e',sc.energy,'#ffb300');
+  ab('hb-tr','hbv-tr',sc.transport,'#00c8ff');
+}
+
+const AI_INSIGHTS=[
+  v=>v>=75?'All city systems nominal. Nagpur operating at optimal efficiency.':'Air quality is primary concern today — restricting heavy vehicles on Wardha Road recommended.',
+  v=>`City health at ${v}/100. ${v<70?'Energy grid optimization could improve score by 8 pts.':'Transport network performing well across all NMC routes.'}`,
+  v=>`NOVA: ${v>=75?'Green day — ideal for outdoor events at Futala Lake.':'AQI elevated in Hingna MIDC. Industrial activity review suggested by MPCB.'}`
+];
+
+// ── ALERTS ──
+const ALERT_POOL=[
+  {level:'warning',dept:'NMC Transit',msg:'Crowd buildup at Sitabuldi — Route 5 delayed 12 mins'},
+  {level:'normal',dept:'NMC Water',msg:'Futala Lake water level stable — 78% seasonal capacity'},
+  {level:'critical',dept:'NMC Sanitation',msg:'Garbage pickup overdue — Lakadganj Ward 14, Day 3'},
+  {level:'warning',dept:'Traffic Police',msg:'Metro construction detour on Wardha Road'},
+  {level:'normal',dept:'MSEDCL',msg:'Solar panels at NMC HQ — 91% efficiency output'},
+  {level:'warning',dept:'NMC Water',msg:'Water pressure low in Dharampeth — investigating'},
+  {level:'normal',dept:'Traffic Police',msg:'VCA Stadium event tonight — expect Ring Road traffic'},
+  {level:'critical',dept:'MSEDCL',msg:'Power fluctuation detected — Hingna MIDC Zone B'},
+  {level:'warning',dept:'IMD',msg:'Heavy rainfall alert — Ambazari catchment area'},
+  {level:'normal',dept:'NMC Tourism',msg:'Deekshabhoomi visitor count — 4,200 today (normal)'},
+];
+setInterval(()=>{
+  const a={...ALERT_POOL[S.poolIdx%ALERT_POOL.length]};
+  a.time=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  S.alerts.unshift(a);if(S.alerts.length>20)S.alerts.length=20;
+  const ct=S.alerts.filter(x=>x.level!=='normal').length;
+  document.getElementById('alert-count').textContent=Math.min(ct,9);
+  renderAlerts(S.alerts,'ov-alerts');
+  S.poolIdx++;
+},9000);
+
+function checkAnomalies(aqi,t,e,tr){
+  const now=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  const list=[];
+  if(aqi>150)list.push({level:'critical',dept:'MPCB',msg:`AQI ${aqi} — Hazardous. Avoid Hingna industrial zone.`,time:now});
+  else if(aqi>100)list.push({level:'warning',dept:'MPCB',msg:`AQI ${aqi} — Unhealthy. Sensitive groups stay indoors.`,time:now});
+  else list.push({level:'normal',dept:'MPCB',msg:`AQI ${aqi} — Acceptable air quality across Nagpur.`,time:now});
+  const tP=Math.max(...t),tH=HOURS[t.indexOf(tP)];
+  if(tP>900)list.push({level:'critical',dept:'Traffic Police',msg:`Traffic spike: ${tP} v/hr at ${tH} — MG Road`,time:now});
+  else if(tP>700)list.push({level:'warning',dept:'Traffic Police',msg:`Heavy traffic: ${tP} v/hr at ${tH} near Zero Mile`,time:now});
+  const eP=Math.max(...e);
+  if(eP>430)list.push({level:'warning',dept:'MSEDCL',msg:`Grid spike: ${eP} MW — optimise Butibori load`,time:now});
+  return list;
+}
+
+const ICONS={critical:'🚨',warning:'⚠️',normal:'✅'};
+function renderAlerts(list,cid){
+  const el=document.getElementById(cid);if(!el)return;
+  el.innerHTML=list.slice(0,8).map(a=>`
+    <div class="alert-item ${a.level}">
+      <div class="a-top"><span class="a-badge">${ICONS[a.level]} ${a.level.toUpperCase()}</span><span class="a-time">${a.time||'--:--'}</span></div>
+      <div class="a-msg">${a.msg}</div>
+    </div>`).join('');
+}
+
+// ── NAVIGATION ──
+function navigate(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  const btn=document.querySelector(`[data-page="${page}"]`);if(btn)btn.classList.add('active');
+  if(page==='traffic')renderTrafficPage();
+  if(page==='environment')renderEnvPage();
+  if(page==='energy')renderEnergyPage();
+  if(page==='transport')renderTransportPage();
+  if(page==='ai')renderAIPulse();
+  if(page==='map')setTimeout(()=>initLeafletMap(),120);
+  if(page==='actions')renderActionsPage();
+  if(page==='reports')renderReportsPage();
+}
+
+// ── NOTIFICATIONS ──
+let notifOpen=false;
+function toggleNotif(){
+  notifOpen=!notifOpen;
+  document.getElementById('notif-panel').classList.toggle('open',notifOpen);
+  if(notifOpen){
+    document.getElementById('notif-body').innerHTML=S.alerts.slice(0,12).map(a=>`
+      <div class="notif-item ${a.level}">
+        <div class="notif-dept">${ICONS[a.level]} ${a.level.toUpperCase()}</div>
+        <div class="notif-msg">${a.msg}</div>
+        <div class="notif-time">${a.time||'--:--'}</div>
+      </div>`).join('');
+  }
+}
+
+// ── OVERVIEW REFRESH ──
+async function fetchAQI(){
+  try{const r=await fetch('https://api.waqi.info/feed/nagpur/?token=demo');const d=await r.json();if(d.status==='ok'){S.aqi=d.data.aqi;return;}}catch(e){}
+  S.aqi=Math.floor(Math.random()*70)+55;
+}
+async function refreshOverview(){
+  await fetchAQI();
+  const aqi=S.aqi,t=genTraffic(),e=genEnergy(),tr=genTransport(),aqiArr=genAQI(aqi);
+  const sc=calcScores(aqi,t,e,tr);const tot=overall(sc);
+  animScore(tot,sc);
+  document.getElementById('ov-ai-insight').textContent=AI_INSIGHTS[S.factIdx%3](tot);S.factIdx++;
+  // KPIs
+  const peak=Math.max(...t);
+  document.getElementById('s-traffic').textContent=peak;
+  const tt=document.getElementById('s-traffic-t');
+  tt.textContent=peak>800?'▲ Heavy':peak>600?'→ Moderate':'▼ Clear';
+  tt.className='stat-trend '+(peak>800?'trend-down':peak>600?'trend-neutral':'trend-up');
+  document.getElementById('s-aqi').textContent=aqi;
+  document.getElementById('s-aqi').style.color=aqiColor(aqi);
+  document.getElementById('s-aqi-label').textContent=aqiLabel(aqi);
+  document.getElementById('s-energy').textContent=Math.max(...e)+' MW';
+  document.getElementById('s-transport').textContent=(tr.reduce((a,b)=>a+b,0)/1000).toFixed(1)+'K';
+  // Banner
+  const critCount=S.alerts.filter(x=>x.level==='critical').length;
+  const bb=document.getElementById('banner-badge'),bt=document.getElementById('banner-text');
+  if(critCount>0){bb.className='banner-badge banner-crit';bb.textContent='● CRITICAL';bt.textContent=`${critCount} critical alert${critCount>1?'s':''} require immediate attention.`;}
+  else if(aqi>100||peak>700){bb.className='banner-badge banner-warn';bb.textContent='● WARNING';bt.textContent='Elevated AQI or traffic detected. Monitoring in progress.';}
+  else{bb.className='banner-badge banner-ok';bb.textContent='● NOMINAL';bt.textContent='All city systems operating within normal parameters. No critical alerts active.';}
+  document.getElementById('banner-time').textContent='Updated '+new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  // Charts
+  lineChart('ov-traffic-chart',HOURS,[{label:'Vehicles/hr',data:t,borderColor:'rgba(0,200,255,0.8)',backgroundColor:'rgba(0,200,255,0.05)',borderWidth:2,tension:.4,fill:true,pointRadius:4,pointBackgroundColor:t.map((_,i)=>i===t.indexOf(peak)?'#ff2d55':'rgba(0,200,255,0.8)')}]);
+  barChart('ov-aqi-chart',HOURS,aqiArr,'rgba(255,106,0,0.5)','AQI');
+  // Alerts
+  const newAlerts=checkAnomalies(aqi,t,e,tr);newAlerts.forEach(a=>S.alerts.unshift(a));
+  if(S.alerts.length>20)S.alerts.length=20;
+  renderAlerts(S.alerts,'ov-alerts');
+  // Dept table
+  renderDeptTable();
+}
+
+function renderDeptTable(){
+  const depts=[
+    {name:'Traffic Police',st:'ok',score:84,issues:2,time:'2m ago'},
+    {name:'MSEDCL',st:'warn',score:71,issues:4,time:'5m ago'},
+    {name:'NMC Sanitation',st:'crit',score:58,issues:7,time:'12m ago'},
+    {name:'NMC Water Supply',st:'warn',score:66,issues:3,time:'8m ago'},
+    {name:'NMC Transit',st:'ok',score:80,issues:1,time:'3m ago'},
+    {name:'MPCB (Air)',st:'warn',score:73,issues:2,time:'6m ago'},
+  ];
+  document.getElementById('dept-table').innerHTML=depts.map(d=>`
+    <tr><td style="font-weight:600;color:var(--text2);">${d.name}</td>
+    <td><span class="sp sp-${d.st==='ok'?'ok':d.st==='warn'?'warn':'crit'}">${d.st==='ok'?'● NORMAL':d.st==='warn'?'● WARNING':'● CRITICAL'}</span></td>
+    <td><span style="font-family:var(--fm);font-weight:700;color:${d.score>=75?'#00ff9d':d.score>=60?'#ffe600':'#ff2d55'}">${d.score}/100</span></td>
+    <td><span style="font-family:var(--fm);color:${d.issues>5?'var(--red)':d.issues>2?'var(--yellow)':'var(--green)'}">${d.issues} active</span></td>
+    <td style="font-family:var(--fm);font-size:10px;color:var(--muted);">${d.time}</td></tr>`).join('');
+}
+
+// ── MODALS ──
+function openModal(id){
+  if(id==='traffic-modal'){
+    const t=genTraffic(),peak=Math.max(...t);
+    document.getElementById('tm-title').textContent='🚦 TRAFFIC — MG ROAD';
+    document.getElementById('traffic-modal-body').innerHTML=`
+      <div class="modal-stat"><span class="modal-stat-label">PEAK VOLUME</span><span class="modal-stat-val" style="color:var(--cyan)">${peak} v/hr</span></div>
+      <div class="modal-stat"><span class="modal-stat-label">PEAK HOUR</span><span class="modal-stat-val" style="color:var(--gold)">${HOURS[t.indexOf(peak)]}</span></div>
+      <div class="modal-stat"><span class="modal-stat-label">STATUS</span><span class="modal-stat-val" style="color:${peak>800?'var(--red)':'var(--green)'}">${peak>800?'CONGESTED':'NORMAL'}</span></div>
+      <div class="modal-stat"><span class="modal-stat-label">HOTSPOT</span><span class="modal-stat-val">MG Road / Sitabuldi</span></div>
+      <div class="modal-stat"><span class="modal-stat-label">ACTION</span><span class="modal-stat-val" style="font-size:12px;color:var(--text)">${peak>800?'Deploy police at Sitabuldi intersection':'No action required'}</span></div>`;}
+  if(id==='aqi-modal'){
+    const aqi=S.aqi||85;
+    document.getElementById('aqi-modal-body').innerHTML=`
+      <div class="modal-stat"><span class="modal-stat-label">CURRENT AQI</span><span class="modal-stat-val" style="color:${aqiColor(aqi)}">${aqi}</span></div>
+      <div class="modal-stat"><span class="modal-stat-label">CATEGORY</span><span class="modal-stat-val" style="color:${aqiColor(aqi)}">${aqiLabel(aqi)}</span></div>
+      <div class="modal-stat"><span class="modal-stat-label">PRIMARY POLLUTANT</span><span class="modal-stat-val">PM2.5 / PM10</span></div>
+      <div class="modal-stat"><span class="modal-stat-label">WORST ZONE</span><span class="modal-stat-val" style="color:var(--red)">Hingna MIDC (142 AQI)</span></div>
+      <div class="modal-stat"><span class="modal-stat-label">BEST ZONE</span><span class="modal-stat-val" style="color:var(--green)">Civil Lines (58 AQI)</span></div>
+      <div class="modal-stat"><span class="modal-stat-label">ADVISORY</span><span class="modal-stat-val" style="font-size:12px;color:var(--text)">${aqi>100?'Avoid outdoor exercise. Wear mask in industrial zones.':'Air quality acceptable for outdoor activity.'}</span></div>`;}
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+// ── ACTIONS PAGE ──
+const ACTIONS={
+  critical:[
+    {title:'Power fluctuation — Hingna MIDC Zone B',dept:'MSEDCL',zone:'Hingna',detail:'Voltage drop across 3 substations. Risk of industrial shutdown.'},
+    {title:'Garbage accumulation — Lakadganj Ward 14',dept:'NMC Sanitation',zone:'Lakadganj',detail:'Day 3 without collection. Health hazard escalating.'},
+  ],
+  warning:[
+    {title:'Water pressure drop — Dharampeth',dept:'NMC Water',zone:'Dharampeth',detail:'Pressure at 60% normal. Investigating pipeline blockage.'},
+    {title:'Bus Route 06 delay >8 mins',dept:'NMC Transit',zone:'Ring Road',detail:'Metro construction causing delays. Alternate route needed.'},
+    {title:'Heavy rainfall alert — Ambazari',dept:'IMD',zone:'West Nagpur',detail:'72-hour forecast: 85mm rainfall. Drain inspection required.'},
+  ],
+  routine:[
+    {title:'Monthly AQI submission to MPCB',dept:'NMC Environment',zone:'All Nagpur',detail:'Due by 5:00 PM today.'},
+    {title:'Traffic signal maintenance — Sitabuldi',dept:'Traffic Police',zone:'Sitabuldi',detail:'Scheduled PM maintenance window.'},
+    {title:'NMC website uptime check',dept:'IT Department',zone:'HQ',detail:'Weekly monitoring report due.'},
+  ]
+};
+function renderActionsPage(){
+  const render=(id,acts,level)=>{
+    document.getElementById(id).innerHTML=acts.map((a,i)=>`
+      <div class="action-item">
+        <div class="action-num" style="background:${level==='critical'?'rgba(255,45,85,0.15)':level==='warning'?'rgba(255,230,0,0.12)':'rgba(0,255,157,0.1)'};color:${level==='critical'?'var(--red)':level==='warning'?'var(--yellow)':'var(--green)'};">${i+1}</div>
+        <div class="action-body"><div class="action-title">${a.title}</div><div class="action-detail">${a.dept} · ${a.zone} · ${a.detail}</div></div>
+        <button class="action-btn ${level==='critical'?'ab-red':level==='warning'?'ab-yellow':'ab-green'}">ASSIGN</button>
+      </div>`).join('');
+  };
+  render('critical-actions',ACTIONS.critical,'critical');
+  render('warning-actions',ACTIONS.warning,'warning');
+  render('routine-actions',ACTIONS.routine,'routine');
+  document.getElementById('ct-crit').textContent=ACTIONS.critical.length;
+  document.getElementById('ct-warn').textContent=ACTIONS.warning.length;
+  document.getElementById('ct-pend').textContent=ACTIONS.critical.length+ACTIONS.warning.length;
+  barChart('action-chart',['Mon','Tue','Wed','Thu','Fri','Sat','Today'],[5,3,7,4,6,2,ACTIONS.critical.length+ACTIONS.warning.length],'rgba(0,200,255,0.4)','Issues');
+}
+
+// ── REPORTS PAGE ──
+function renderReportsPage(){
+  const reports=[
+    {name:'Daily City Summary — 13 Mar',date:'Today, 08:00',icon:'📊',bg:'rgba(0,255,157,0.1)'},
+    {name:'Weekly Traffic Analysis — W10',date:'10 Mar 2026',icon:'🚦',bg:'rgba(0,200,255,0.1)'},
+    {name:'AQI Monthly Report — Feb 2026',date:'01 Mar 2026',icon:'💨',bg:'rgba(255,106,0,0.1)'},
+    {name:'Energy Consumption — Feb 2026',date:'01 Mar 2026',icon:'⚡',bg:'rgba(255,179,0,0.1)'},
+    {name:'Incident Log — Feb 2026',date:'28 Feb 2026',icon:'🚨',bg:'rgba(255,45,85,0.1)'},
+  ];
+  document.getElementById('report-list').innerHTML=reports.map(r=>`
+    <div class="report-row">
+      <div class="report-icon" style="background:${r.bg}">${r.icon}</div>
+      <div><div class="report-title">${r.name}</div><div class="report-date">${r.date}</div></div>
+      <button class="report-dl">⬇ PDF</button>
+    </div>`).join('');
+  lineChart('rpt-trend-chart',['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],[
+    {label:'Health Score',data:[72,75,68,80,77,74,S.factIdx%10+65],borderColor:'rgba(0,255,157,0.8)',backgroundColor:'rgba(0,255,157,0.05)',borderWidth:2,tension:.4,fill:true,pointRadius:3},
+    {label:'AQI',data:[90,88,95,82,86,91,S.aqi||85],borderColor:'rgba(255,106,0,0.8)',backgroundColor:'rgba(255,106,0,0.04)',borderWidth:2,tension:.4,fill:true,pointRadius:3},
+  ]);
+}
+
+// ── TRAFFIC PAGE ──
+const NAGPUR_ROADS=[
+  {name:'MG Road',from:'Sitabuldi',to:'Dharampeth',load:85,color:'#ff2d55'},
+  {name:'Wardha Road',from:'Zero Mile',to:'Airport',load:70,color:'#ffe600'},
+  {name:'Ring Road',from:'Mankapur',to:'Hingna',load:60,color:'#ff6a00'},
+  {name:'Amravati Road',from:'Nandanvan',to:'Kamptee',load:45,color:'#00ff9d'},
+  {name:'Katol Road',from:'Indora',to:'Katol',load:40,color:'#00c8ff'},
+  {name:'Bazaar Ward',from:'Itwari',to:'Cotton Market',load:75,color:'#ffe600'},
+];
+function renderTrafficPage(){
+  let svg=`<svg width="100%" height="100%" viewBox="0 0 650 260" style="font-family:'Share Tech Mono',monospace;">
+    <defs><filter id="glow"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    ${Array.from({length:12},(_,i)=>`<line x1="${i*60}" y1="0" x2="${i*60}" y2="260" stroke="rgba(0,200,255,0.05)"/>`).join('')}
+    ${Array.from({length:6},(_,i)=>`<line x1="0" y1="${i*50}" x2="650" y2="${i*50}" stroke="rgba(0,200,255,0.05)"/>`).join('')}`;
+  const roadCoords=[[80,130,560,130],[325,30,325,230],[100,60,560,200],[60,180,600,80],[150,30,500,230],[200,130,400,30]];
+  NAGPUR_ROADS.forEach((r,i)=>{const[x1,y1,x2,y2]=roadCoords[i];const w=r.load>75?4:r.load>50?3:2;
+    svg+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${r.color}" stroke-width="${w}" stroke-opacity="0.75" filter="url(#glow)"/>`;});
+  [[325,130,'Zero Mile'],[180,130,'Sitabuldi'],[460,130,'Dharampeth'],[325,60,'Civil Lines'],[325,200,'Hingna'],[100,70,'Itwari'],[560,80,'Airport']].forEach(([x,y,lbl])=>{
+    svg+=`<circle cx="${x}" cy="${y}" r="8" fill="rgba(5,20,35,0.9)" stroke="var(--cyan)" stroke-width="2" filter="url(#glow)" style="cursor:pointer;" onclick="openModal('traffic-modal')"/>
+    <circle cx="${x}" cy="${y}" r="3" fill="var(--cyan)"/>
+    <text x="${x}" y="${y+20}" text-anchor="middle" fill="rgba(0,200,255,0.7)" font-size="9">${lbl}</text>`;});
+  svg+='</svg>';
+  document.getElementById('traffic-map-svg').innerHTML=svg;
+  document.getElementById('traffic-zone-list').innerHTML=NAGPUR_ROADS.map(r=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div style="width:8px;height:8px;border-radius:50%;background:${r.color};box-shadow:0 0 6px ${r.color};flex-shrink:0;"></div>
+      <div style="flex:1;font-size:12px;color:var(--text2);">${r.name}</div>
+      <div style="font-family:var(--fd);font-size:12px;color:${r.color};">${r.load}%</div>
+    </div>`).join('');
+  barChart('tr-peak-chart',HOURS,genTraffic(),'rgba(0,200,255,0.5)','Vehicles/hr');
+  const d=[genTraffic(),genTraffic(),genTraffic()];
+  lineChart('tr-main-chart',HOURS,[
+    {label:'MG Road',data:d[0],borderColor:'rgba(255,45,85,0.8)',backgroundColor:'transparent',borderWidth:2,tension:.4,pointRadius:3},
+    {label:'Wardha Road',data:d[1],borderColor:'rgba(255,230,0,0.8)',backgroundColor:'transparent',borderWidth:2,tension:.4,pointRadius:3},
+    {label:'Ring Road',data:d[2],borderColor:'rgba(0,200,255,0.8)',backgroundColor:'transparent',borderWidth:2,tension:.4,pointRadius:3},
+  ]);
+}
+
+// ── ENVIRONMENT PAGE ──
+const ZONES_ENV=[
+  {name:'Dharampeth',off:-20},{name:'Civil Lines',off:-25},{name:'Sitabuldi',off:-10},
+  {name:'Lakadganj',off:5},{name:'Hingna MIDC',off:35},{name:'Butibori',off:25},
+  {name:'Kamptee',off:10},{name:'Itwari',off:0},{name:'Wardha Road',off:15},
+];
+function renderEnvPage(){
+  const base=S.aqi||85;
+  document.getElementById('env-zones').innerHTML=ZONES_ENV.map(z=>{
+    const aqi=Math.max(20,base+z.off+~~(Math.random()*8-4));const c=aqiColor(aqi);
+    return `<div class="zone-big">
+      <div class="zone-aqi-num" style="color:${c};text-shadow:0 0 20px ${c};">${aqi}</div>
+      <div class="zone-lbl">${z.name}</div>
+      <div class="zone-sublbl">${aqiLabel(aqi)}</div>
+      <div class="aqi-segs"><div class="aqi-seg" style="background:#00ff9d;opacity:${aqi<=50?1:.2};"></div><div class="aqi-seg" style="background:#ffe600;opacity:${aqi>50&&aqi<=100?1:.2};"></div><div class="aqi-seg" style="background:#ff6a00;opacity:${aqi>100&&aqi<=150?1:.2};"></div><div class="aqi-seg" style="background:#ff2d55;opacity:${aqi>150?1:.2};"></div></div>
+    </div>`;}).join('');
+  lineChart('env-trend-chart',HOURS,[{label:'AQI',data:genAQI(base),borderColor:'rgba(255,106,0,0.8)',backgroundColor:'rgba(255,106,0,0.06)',borderWidth:2,tension:.4,fill:true,pointRadius:4}]);
+  doughnutChart('env-pollutant-chart',['PM2.5','PM10','NO₂','SO₂','CO','O₃'],[38,25,14,10,8,5],
+    ['rgba(255,45,85,.7)','rgba(255,106,0,.7)','rgba(255,230,0,.7)','rgba(0,200,255,.7)','rgba(0,255,157,.7)','rgba(150,100,255,.7)']);
+}
+
+// ── ENERGY PAGE ──
+function renderEnergyPage(){
+  const stats=[
+    {icon:'☀️',label:'Solar Output',val:'48 MW',c:'var(--gold)'},
+    {icon:'⚡',label:'Peak Demand',val:'442 MW',c:'var(--red)'},
+    {icon:'🔋',label:'Grid Storage',val:'62%',c:'var(--cyan)'},
+    {icon:'🌿',label:'Green Energy',val:'55%',c:'var(--green)'},
+  ];
+  document.getElementById('en-stat-cards').innerHTML=stats.map(s=>`
+    <div class="stat-card" style="--card-accent:${s.c};">
+      <div class="stat-icon">${s.icon}</div><div class="stat-label">${s.label}</div>
+      <div class="stat-val" style="color:${s.c}">${s.val}</div>
+    </div>`).join('');
+  lineChart('en-load-chart',Array.from({length:24},(_,i)=>i+':00'),[{label:'MW',data:Array.from({length:24},()=>150+~~(Math.random()*150)+80),borderColor:'rgba(255,179,0,0.8)',backgroundColor:'rgba(255,179,0,0.06)',borderWidth:2,tension:.4,fill:true,pointRadius:0}]);
+  doughnutChart('en-mix-chart',['Thermal','Solar','Wind','Hydro','Import'],[45,22,15,8,10],
+    ['rgba(255,45,85,.6)','rgba(255,230,0,.7)','rgba(0,255,157,.6)','rgba(0,200,255,.6)','rgba(150,100,255,.6)']);
+  barChart('en-zone-chart',['Dharampeth','Sitabuldi','Hingna','Civil Lines','Butibori','Lakadganj'],
+    [68,82,145,54,110,73],'rgba(255,179,0,0.5)','MW');
+}
+
+// ── TRANSPORT PAGE ──
+const ROUTES=[
+  {num:'01',name:'Sitabuldi ↔ Airport',path:'MG Rd → Wardha Rd',pax:3800,c:'#ff2d55',status:'ON TIME'},
+  {num:'06',name:'Itwari ↔ Hingna',path:'Cotton Mkt → Ring Rd',pax:3400,c:'#ffb300',status:'DELAYED 8m'},
+  {num:'11',name:'Nandanvan ↔ VCA',path:'Mankapur → Inner Ring',pax:2200,c:'#00c8ff',status:'ON TIME'},
+  {num:'15',name:'Kamptee ↔ Civil Lines',path:'Amravati Rd → Zero Mile',pax:1900,c:'#00ff9d',status:'ON TIME'},
+  {num:'22',name:'Dharampeth ↔ Butibori',path:'WHC Rd → Ring Rd',pax:1600,c:'rgba(150,100,255,1)',status:'ON TIME'},
+];
+function renderTransportPage(){
+  lineChart('tp-load-chart',HOURS,[{label:'Passengers',data:genTransport(),borderColor:'rgba(0,255,157,0.8)',backgroundColor:'rgba(0,255,157,0.05)',borderWidth:2,tension:.4,fill:true,pointRadius:4}]);
+  document.getElementById('route-list').innerHTML=ROUTES.map(r=>`
+    <div class="route-card">
+      <div class="route-num" style="background:${r.c}22;border:1px solid ${r.c};color:${r.c};">${r.num}</div>
+      <div style="flex:1;"><div class="route-name">${r.name}</div><div class="route-path">${r.path}</div></div>
+      <div><div class="route-pax" style="color:${r.c}">${r.pax.toLocaleString()}</div><div class="route-status" style="color:${r.status.includes('DELAYED')?'var(--red)':'var(--green)'}">${r.status}</div></div>
+    </div>`).join('');
+  document.getElementById('metro-count').textContent=(~~(Math.random()*5000)+28000).toLocaleString();
+  document.getElementById('bus-status-list').innerHTML=[
+    {id:'NMC-142',route:'Route 01',loc:'Sitabuldi',occ:85,ok:true},
+    {id:'NMC-267',route:'Route 06',loc:'Ring Road',occ:92,ok:false},
+    {id:'NMC-389',route:'Route 11',loc:'VCA Rd',occ:60,ok:true},
+    {id:'NMC-451',route:'Route 15',loc:'Zero Mile',occ:45,ok:true},
+  ].map(b=>`<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+    <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+      <span style="color:var(--cyan);font-family:var(--fm);font-size:11px;">${b.id}</span>
+      <span style="color:${b.ok?'var(--green)':'var(--red)'};font-size:11px;font-family:var(--fm);">● ${b.ok?'RUNNING':'DELAYED'}</span>
+    </div>
+    <div style="color:var(--muted);font-family:var(--fm);font-size:10px;">${b.route} · ${b.loc}</div>
+    <div style="height:3px;background:rgba(0,200,255,0.1);border-radius:2px;margin-top:5px;">
+      <div style="height:3px;background:${b.occ>80?'var(--red)':b.occ>60?'var(--yellow)':'var(--green)'};width:${b.occ}%;border-radius:2px;transition:width 1s;"></div>
+    </div>
+  </div>`).join('');
+}
+
+// ── AI CHAT ──
+async function sendChat(){
+  const inp=document.getElementById('chat-input');const msg=inp.value.trim();if(!msg)return;
+  inp.value='';addMsg(msg,'user');const typing=addTyping();
+  try{
+    const ctx=`You are NOVA, AI assistant for Nagpur Smart City Command Center (NMC). Data: AQI=${S.aqi||85}, Health=${document.getElementById('ov-score-num')?.textContent||72}/100. You know all about Nagpur — Zero Mile, Deekshabhoomi, Futala Lake, VCA Stadium, MG Road, Wardha Road, Hingna MIDC, and NMC's smart city initiatives. Respond in 2-3 sentences, be specific to Nagpur, add relevant emojis.`;
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:ctx,messages:[...S.chatHistory,{role:'user',content:msg}]})});
+    const d=await r.json();typing.remove();
+    const reply=d.content?.[0]?.text||'Connection disrupted. Please retry.';
+    S.chatHistory.push({role:'user',content:msg},{role:'assistant',content:reply});
+    if(S.chatHistory.length>20)S.chatHistory=S.chatHistory.slice(-20);
+    addMsg(reply,'ai');
+  }catch(e){typing.remove();addMsg('My connection to city intelligence is temporarily disrupted. Please retry. 🔄','ai');}
+}
+function addMsg(text,role){
+  const now=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  const d=document.createElement('div');d.className=`msg ${role}`;
+  d.innerHTML=`<div class="msg-bubble">${text}</div><div class="msg-time">${now}</div>`;
+  document.getElementById('chat-messages').appendChild(d);document.getElementById('chat-messages').scrollTop=9999;return d;
+}
+function addTyping(){
+  const d=document.createElement('div');d.className='msg ai';
+  d.innerHTML=`<div class="msg-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+  document.getElementById('chat-messages').appendChild(d);document.getElementById('chat-messages').scrollTop=9999;return d;
+}
+function askQ(q){document.getElementById('chat-input').value=q;sendChat();}
+function renderAIPulse(){
+  const aqi=S.aqi||85;const score=parseInt(document.getElementById('ov-score-num')?.textContent)||72;
+  document.getElementById('ai-pulse').innerHTML=[
+    {l:'City Score',v:score+'/100',c:score>=75?'var(--green)':score>=50?'var(--gold)':'var(--red)'},
+    {l:'Live AQI',v:aqi+' — '+aqiLabel(aqi),c:aqiColor(aqi)},
+    {l:'MG Road Traffic',v:'Moderate',c:'var(--yellow)'},
+    {l:'Energy Grid',v:'382 MW · Normal',c:'var(--green)'},
+    {l:'Active Alerts',v:S.alerts.filter(x=>x.level!=='normal').length+' issues',c:'var(--red)'},
+  ].map(x=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);">
+    <span style="font-size:11px;color:var(--muted);font-family:var(--fm);">${x.l}</span>
+    <span style="font-family:var(--fd);font-size:12px;color:${x.c};">${x.v}</span></div>`).join('');
+}
+
+// ── SENSOR FILTER ──
+const AREA_DATA={dharampeth:{name:'Dharampeth'},sitabuldi:{name:'Sitabuldi'},civillines:{name:'Civil Lines'},hingna:{name:'Hingna MIDC'},butibori:{name:'Butibori'},lakadganj:{name:'Lakadganj'},kamptee:{name:'Kamptee'},itwari:{name:'Itwari'},wardharoad:{name:'Wardha Road'}};
+const SENSOR_DATA={
+  aqi:{label:'AIR QUALITY INDEX',unit:'AQI',vals:{dharampeth:72,sitabuldi:95,civillines:58,hingna:142,butibori:130,lakadganj:105,kamptee:80,itwari:110,wardharoad:88}},
+  traffic:{label:'TRAFFIC LOAD',unit:'v/hr',vals:{dharampeth:620,sitabuldi:880,civillines:410,hingna:520,butibori:290,lakadganj:650,kamptee:380,itwari:710,wardharoad:760}},
+  energy:{label:'ENERGY CONSUMPTION',unit:'MW',vals:{dharampeth:68,sitabuldi:82,civillines:54,hingna:145,butibori:110,lakadganj:73,kamptee:61,itwari:88,wardharoad:95}},
+  transport:{label:'PASSENGER LOAD',unit:'K/hr',vals:{dharampeth:2.1,sitabuldi:3.8,civillines:1.4,hingna:1.8,butibori:0.9,lakadganj:2.3,kamptee:1.6,itwari:2.8,wardharoad:3.1}},
+};
+let srChart=null;
+function applySensorFilter(){
+  const area=document.getElementById('filter-area').value;
+  const sensor=document.getElementById('filter-sensor').value;
+  const sd=SENSOR_DATA[sensor];if(!sd)return;
+  const val=area&&sd.vals[area]?sd.vals[area]:(Object.values(sd.vals).reduce((a,b)=>a+b,0)/Object.values(sd.vals).length).toFixed(1);
+  const color=sensor==='aqi'?aqiColor(val):sensor==='traffic'?'#00c8ff':sensor==='energy'?'#ffb300':'#00ff9d';
+  const panel=document.getElementById('sensor-result');panel.classList.add('open');
+  document.getElementById('sr-title').textContent=sd.label;
+  document.getElementById('sr-big').textContent=val;document.getElementById('sr-big').style.color=color;
+  document.getElementById('sr-label').textContent=sd.unit+' · '+(area?AREA_DATA[area]?.name:'All Nagpur');document.getElementById('sr-label').style.color=color;
+  document.getElementById('sr-rows').innerHTML=`<div class="sr-row"><div class="sr-k">ZONE</div><div class="sr-v" style="color:${color}">${area?AREA_DATA[area]?.name:'City Average'}</div></div>`;
+  if(srChart)srChart.destroy();
+  const trendData=HOURS.map(()=>parseFloat(val)+(Math.random()*10-5));
+  srChart=new Chart(document.getElementById('sr-chart'),{type:'line',data:{labels:HOURS,datasets:[{data:trendData,borderColor:color,backgroundColor:color+'15',borderWidth:2,tension:.4,fill:true,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}}}});
+}
+
+// ── LEAFLET MAP ──
+let leafletMap=null,leafletMarkers=[];
+let tileMode='satellite';
+const TILE_SAT='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const TILE_STR='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+let currentTileLayer=null;
+let currentMapSensor='aqi';
+
+const MAP_ZONES_LATLNG={
+  zeromile:{lat:21.1458,lng:79.0882,name:'Zero Mile',desc:'Geographic Centre of India'},
+  sitabuldi:{lat:21.1427,lng:79.0832,name:'Sitabuldi',desc:'Commercial Hub'},
+  dharampeth:{lat:21.1367,lng:79.0697,name:'Dharampeth',desc:'Residential Zone'},
+  civillines:{lat:21.1544,lng:79.0977,name:'Civil Lines',desc:'Administrative Area'},
+  hingna:{lat:21.1001,lng:78.9712,name:'Hingna MIDC',desc:'Industrial Zone'},
+  butibori:{lat:21.0167,lng:79.0833,name:'Butibori',desc:'Industrial Corridor'},
+  lakadganj:{lat:21.1346,lng:79.1010,name:'Lakadganj',desc:'Ward 14'},
+  kamptee:{lat:21.2167,lng:79.1833,name:'Kamptee',desc:'North Nagpur'},
+  itwari:{lat:21.1493,lng:79.1010,name:'Itwari',desc:'Old Town Market'},
+  wardharoad:{lat:21.0833,lng:79.1000,name:'Wardha Road',desc:'South Corridor'},
+  futala:{lat:21.1500,lng:79.0500,name:'Futala Lake',desc:'Blue Lung of Nagpur'},
+  airport:{lat:21.0922,lng:79.0472,name:'Airport',desc:'Dr. Ambedkar Intl.'},
+};
+
+const ZONE_VALUES={
+  aqi:{zeromile:90,sitabuldi:95,dharampeth:72,civillines:58,hingna:142,butibori:130,lakadganj:105,kamptee:80,itwari:110,wardharoad:88,futala:62,airport:75},
+  traffic:{zeromile:880,sitabuldi:850,dharampeth:610,civillines:400,hingna:520,butibori:290,lakadganj:660,kamptee:370,itwari:720,wardharoad:760,futala:280,airport:310},
+  energy:{zeromile:88,sitabuldi:82,dharampeth:68,civillines:54,hingna:148,butibori:112,lakadganj:75,kamptee:60,itwari:90,wardharoad:97,futala:22,airport:44},
+  transport:{zeromile:3800,sitabuldi:3600,dharampeth:2100,civillines:1400,hingna:1800,butibori:900,lakadganj:2300,kamptee:1600,itwari:2800,wardharoad:3100,futala:600,airport:1200},
+};
+
+function getZoneValue(key,sensor){return(ZONE_VALUES[sensor]?.[key]||0)+~~(Math.random()*8-4);}
+function sensorColor(sensor,val){
+  if(sensor==='aqi')return val<=50?'#00ff9d':val<=100?'#ffe600':val<=150?'#ff6a00':'#ff2d55';
+  if(sensor==='traffic')return val>800?'#ff2d55':val>500?'#ffe600':'#00ff9d';
+  if(sensor==='energy')return val>350?'#ff2d55':val>250?'#ffe600':'#00ff9d';
+  if(sensor==='transport')return val>3500?'#ff2d55':val>2500?'#ffe600':'#00ff9d';
+  return '#00c8ff';
+}
+function sensorDisplay(sensor,val){return sensor==='transport'?(val/1000).toFixed(1)+'K':String(val);}
+function sensorStatusText(sensor,val){
+  if(sensor==='aqi')return aqiLabel(val);
+  if(sensor==='traffic')return val>800?'HEAVY':val>500?'MODERATE':'CLEAR';
+  if(sensor==='energy')return val>350?'HIGH':val>250?'MODERATE':'OPTIMAL';
+  if(sensor==='transport')return val>3500?'OVERCROWDED':val>2500?'BUSY':'NORMAL';
+  return '';
+}
+
+function initLeafletMap(){
+  if(!window.L){setTimeout(initLeafletMap,300);return;}
+  const container=document.getElementById('leaflet-map');
+  if(!container)return;
+  if(leafletMap){leafletMap.invalidateSize();updateLeafletMarkers(currentMapSensor);return;}
+  leafletMap=L.map('leaflet-map',{center:[21.1458,79.0882],zoom:12,zoomControl:true});
+  currentTileLayer=L.tileLayer(TILE_SAT,{maxZoom:18,attribution:'Tiles © Esri'}).addTo(leafletMap);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',{pane:'shadowPane',opacity:0.8}).addTo(leafletMap);
+  updateLeafletMarkers(currentMapSensor);
+}
+
+function updateLeafletMarkers(sensor){
+  if(!leafletMap||!window.L)return;
+  leafletMarkers.forEach(m=>leafletMap.removeLayer(m));leafletMarkers=[];
+  Object.entries(MAP_ZONES_LATLNG).forEach(([key,z])=>{
+    const val=getZoneValue(key,sensor);const color=sensorColor(sensor,val);const display=sensorDisplay(sensor,val);
+    const icon=L.divIcon({className:'',html:`
+      <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;font-family:'Share Tech Mono',monospace;">
+        <div style="background:rgba(2,8,16,0.92);border:1px solid ${color};color:${color};font-size:10px;font-weight:700;
+          padding:4px 9px;border-radius:6px;white-space:nowrap;box-shadow:0 0 12px ${color}66;letter-spacing:1px;">
+          ${display} <span style="opacity:0.6;font-size:9px;">${z.name}</span>
+        </div>
+        <div style="width:1.5px;height:7px;background:${color};"></div>
+        <div style="width:9px;height:9px;border-radius:50%;background:${color};border:2px solid rgba(2,8,16,0.9);box-shadow:0 0 8px ${color};"></div>
+      </div>`,iconAnchor:[40,30],iconSize:[80,50]});
+    const marker=L.marker([z.lat,z.lng],{icon}).addTo(leafletMap);
+    marker.bindPopup(`<div style="font-family:'Rajdhani',sans-serif;background:rgba(4,12,24,0.98);border:1px solid ${color};border-radius:10px;padding:14px 16px;min-width:170px;box-shadow:0 0 20px ${color}44;">
+      <div style="font-family:'Orbitron',monospace;font-size:11px;color:${color};letter-spacing:2px;margin-bottom:2px;">${z.name.toUpperCase()}</div>
+      <div style="font-size:10px;color:#2a5570;font-family:'Share Tech Mono',monospace;margin-bottom:10px;">${z.desc}</div>
+      <div style="font-family:'Orbitron',monospace;font-size:30px;font-weight:900;color:${color};line-height:1;">${display}</div>
+      <div style="font-size:9px;color:${color};font-family:'Share Tech Mono',monospace;letter-spacing:2px;margin-top:4px;text-transform:uppercase;">${sensorStatusText(sensor,val)}</div>
+    </div>`,{maxWidth:220,className:''});
+    marker.on('click',()=>selectMapZone(key));
+    leafletMarkers.push(marker);
+  });
+  renderMapZoneList(sensor);
+}
+
+function selectMapZone(key){
+  document.querySelectorAll('.mzl-card').forEach(c=>c.classList.remove('sel'));
+  const card=document.getElementById('mzlc-'+key);
+  if(card){card.classList.add('sel');card.scrollIntoView({behavior:'smooth',block:'nearest'});}
+  const z=MAP_ZONES_LATLNG[key];if(z&&leafletMap)leafletMap.setView([z.lat,z.lng],14,{animate:true});
+}
+
+function switchMapSensor(sensor,btn){
+  currentMapSensor=sensor;
+  document.querySelectorAll('.msb').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  updateLeafletMarkers(sensor);
+}
+
+function toggleTileMode(){
+  tileMode=tileMode==='satellite'?'street':'satellite';
+  if(!leafletMap)return;
+  leafletMap.removeLayer(currentTileLayer);
+  currentTileLayer=L.tileLayer(tileMode==='satellite'?TILE_SAT:TILE_STR,{maxZoom:18,attribution:tileMode==='satellite'?'© Esri':'© OpenStreetMap'}).addTo(leafletMap);
+  document.getElementById('tile-toggle-btn').textContent=tileMode==='satellite'?'🛰 Satellite':'🗺 Street';
+}
+
+function renderMapZoneList(sensor){
+  document.getElementById('map-zone-list').innerHTML=Object.entries(MAP_ZONES_LATLNG).map(([key,z])=>{
+    const v=getZoneValue(key,sensor);const c=sensorColor(sensor,v);
+    return `<div class="mzl-card" id="mzlc-${key}" onclick="selectMapZone('${key}')">
+      <div class="mzl-dot" style="background:${c};box-shadow:0 0 6px ${c};"></div>
+      <div class="mzl-name">${z.name}</div>
+      <div class="mzl-val" style="color:${c};">${sensorDisplay(sensor,v)}</div>
+    </div>`;}).join('');
+}
+
+// ── PARTICLES ──
+for(let i=0;i<18;i++){
+  const p=document.createElement('div');p.className='particle';
+  const s=Math.random()*4+2;
+  p.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;background:${Math.random()>.5?'rgba(0,200,255,0.4)':'rgba(255,106,0,0.3)'};animation-duration:${Math.random()*15+10}s;animation-delay:${Math.random()*10}s;`;
+  document.body.appendChild(p);
+}
+
+// ── BOOT ──
+window.addEventListener('load',function(){
+  refreshOverview();
+  setInterval(refreshOverview,60000);
+});
+</script>
+</body>
+</html>
