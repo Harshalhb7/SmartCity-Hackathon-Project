@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 :root{
   --bg:#020408;--bg2:#050d14;
@@ -412,6 +413,67 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 @media(max-width:1200px){.overview-grid{grid-template-columns:1fr 1fr;}.stat-row,.charts-2col{grid-column:1/3;}.score-col,.alerts-col{grid-column:1/3;}}
+
+/* ── SUPABASE DB LAYER ── */
+.db-chip{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;
+  font-size:9px;font-family:var(--fm);letter-spacing:2px;text-transform:uppercase;cursor:pointer;
+  border:1px solid;transition:all .3s;}
+.db-chip.connecting{background:rgba(255,179,0,0.08);color:var(--gold);border-color:rgba(255,179,0,0.3);}
+.db-chip.connected{background:rgba(0,200,255,0.08);color:var(--cyan);border-color:rgba(0,200,255,0.3);}
+.db-chip.error{background:rgba(255,45,85,0.08);color:var(--red);border-color:rgba(255,45,85,0.3);}
+.db-chip.simulated{background:rgba(150,100,255,0.08);color:#a07fff;border-color:rgba(150,100,255,0.3);}
+.db-dot{width:6px;height:6px;border-radius:50%;animation:blink 1.4s infinite;}
+.db-chip.connected .db-dot{background:var(--cyan);}
+.db-chip.connecting .db-dot{background:var(--gold);}
+.db-chip.error .db-dot{background:var(--red);animation:none;}
+.db-chip.simulated .db-dot{background:#a07fff;}
+
+/* DB Config Modal */
+.dbcfg-overlay{position:fixed;inset:0;z-index:4000;background:rgba(0,0,0,0.88);
+  backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity .3s;}
+.dbcfg-overlay.open{opacity:1;pointer-events:all;}
+.dbcfg-box{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;width:560px;
+  max-width:95vw;overflow:hidden;transform:scale(.93);transition:transform .3s;
+  box-shadow:0 0 80px rgba(0,200,255,0.12);}
+.dbcfg-overlay.open .dbcfg-box{transform:scale(1);}
+.dbcfg-head{padding:22px 28px;background:linear-gradient(135deg,rgba(0,200,255,0.07),rgba(0,255,234,0.03));
+  border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;}
+.dbcfg-title{font-family:var(--fd);font-size:13px;color:var(--cyan);letter-spacing:3px;}
+.dbcfg-close{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;}
+.dbcfg-close:hover{color:var(--red);}
+.dbcfg-body{padding:24px 28px;display:flex;flex-direction:column;gap:14px;}
+.dbcfg-section{background:rgba(0,200,255,0.03);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+.dbcfg-section-title{font-size:9px;letter-spacing:2px;color:var(--cyan);text-transform:uppercase;
+  font-family:var(--fm);margin-bottom:12px;}
+.dbcfg-field{margin-bottom:10px;}
+.dbcfg-label{font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;
+  font-family:var(--fm);margin-bottom:5px;}
+.dbcfg-input{width:100%;background:rgba(0,200,255,0.04);border:1px solid var(--border2);border-radius:7px;
+  color:var(--text2);font-family:var(--fm);font-size:12px;padding:9px 13px;outline:none;transition:border-color .2s;}
+.dbcfg-input:focus{border-color:var(--cyan);box-shadow:0 0 10px rgba(0,200,255,0.15);}
+.dbcfg-input::placeholder{color:var(--muted);}
+.dbcfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.dbcfg-footer{padding:16px 28px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;
+  background:rgba(0,200,255,0.02);}
+.dbcfg-btn{padding:9px 20px;border-radius:8px;font-family:var(--fm);font-size:10px;
+  letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all .2s;border:1px solid;}
+.dbcfg-btn-primary{background:rgba(0,200,255,0.15);color:var(--cyan);border-color:var(--border2);}
+.dbcfg-btn-primary:hover{background:rgba(0,200,255,0.25);box-shadow:0 0 15px rgba(0,200,255,0.2);}
+.dbcfg-btn-secondary{background:transparent;color:var(--muted);border-color:var(--border);}
+.dbcfg-btn-secondary:hover{color:var(--text);border-color:var(--muted);}
+.dbcfg-status{font-size:11px;font-family:var(--fm);padding:10px 14px;border-radius:7px;
+  text-align:center;border:1px solid;}
+.dbcfg-status.ok{background:rgba(0,255,157,0.07);color:var(--green);border-color:rgba(0,255,157,0.2);}
+.dbcfg-status.err{background:rgba(255,45,85,0.07);color:var(--red);border-color:rgba(255,45,85,0.2);}
+.dbcfg-status.info{background:rgba(0,200,255,0.07);color:var(--cyan);border-color:rgba(0,200,255,0.2);}
+.db-table-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;
+  border-bottom:1px solid var(--border);font-size:11px;}
+.db-table-row:last-child{border-bottom:none;}
+.db-table-name{color:var(--cyan);font-family:var(--fm);}
+.db-table-cols{color:var(--muted);font-family:var(--fm);font-size:10px;}
+.db-table-count{color:var(--green);font-family:var(--fd);font-size:12px;}
+
 </style>
 </head>
 <body>
@@ -523,6 +585,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
     <button class="fx-apply" onclick="applySensorFilter()">▶ ANALYZE</button>
     <div class="tb-sep"></div>
     <div class="notif-btn" onclick="toggleNotif()" id="notif-btn">🔔<div class="notif-badge" id="alert-count">3</div></div>
+    <div class="db-chip connecting" id="db-chip" onclick="openDBConfig()" title="Click to configure Supabase"><div class="db-dot"></div><span id="db-chip-label">DB CONNECTING</span></div>
     <div class="live-chip"><div class="live-dot"></div>LIVE</div>
     <div id="tb-clock">--:--:--</div>
   </div>
@@ -1482,7 +1545,568 @@ window.addEventListener('load',function(){
   refreshOverview();
   setInterval(refreshOverview,60000);
 });
+
+// ════════════════════════════════════════════════════
+// SUPABASE DATABASE LAYER
+// ════════════════════════════════════════════════════
+
+const DB = {
+  client: null,
+  connected: false,
+  simMode: false,
+  url: 'https://qfsmdsadkkotaeiyozxl.supabase.co',
+  key: 'sb_publishable_AjyuGtPMqf5fLrbZbzEs3w_Ab4X2_GW',
+  tables: [],           // all discovered tables
+  subscriptions: [],    // active realtime channels
+  tableMap: {           // logical → actual table name
+    aqi: null,
+    traffic: null,
+    energy: null,
+    transport: null,
+    alerts: null,
+    incidents: null,
+  },
+  // Column guesses per domain (tries these in order)
+  colGuess: {
+    aqi:       ['aqi','value','aqi_value','index','reading','air_quality','pm25','pm2_5'],
+    traffic:   ['vehicles','volume','count','load','flow','speed','congestion','vehicles_per_hour','vph'],
+    energy:    ['mw','demand','consumption','load','power','kwh','usage','watts','energy'],
+    transport: ['passengers','count','ridership','load','pax','boarding','alighting'],
+    zone:      ['zone','area','location','region','ward','sector','name','place'],
+    level:     ['level','severity','priority','type','status','category'],
+    msg:       ['message','msg','description','details','text','note','alert'],
+    dept:      ['department','dept','agency','source','author'],
+    timestamp: ['created_at','timestamp','time','recorded_at','ts','date','inserted_at'],
+    road:      ['road','street','name','location','route','corridor'],
+    status:    ['status','state','condition','mode'],
+  }
+};
+
+// ── INIT ──
+async function dbInit() {
+  setChip('connecting', 'DB CONNECTING');
+  try {
+    if (!window.supabase) { throw new Error('Supabase SDK not loaded'); }
+    DB.client = window.supabase.createClient(DB.url, DB.key);
+    await dbDiscover();
+  } catch(e) {
+    console.warn('Supabase init error:', e);
+    dbFallbackSim('SDK error: ' + e.message);
+  }
+}
+
+// ── DISCOVER TABLES ──
+async function dbDiscover() {
+  try {
+    // Use information_schema via RPC or direct query
+    const { data, error } = await DB.client
+      .from('information_schema.tables')
+      .select('table_name')
+      .eq('table_schema', 'public')
+      .neq('table_type', 'VIEW');
+
+    if (!error && data && data.length > 0) {
+      DB.tables = data.map(r => r.table_name);
+    } else {
+      // Fallback: probe common names
+      DB.tables = await probeTables();
+    }
+
+    if (DB.tables.length === 0) {
+      dbFallbackSim('No tables found. Using simulation.');
+      return;
+    }
+
+    autoMapTables();
+    await dbConnect();
+
+  } catch(e) {
+    // Fallback: try probing
+    DB.tables = await probeTables();
+    if (DB.tables.length > 0) {
+      autoMapTables();
+      await dbConnect();
+    } else {
+      dbFallbackSim('Could not discover tables: ' + e.message);
+    }
+  }
+}
+
+// ── PROBE COMMON TABLE NAMES ──
+async function probeTables() {
+  const candidates = [
+    'aqi','aqi_readings','air_quality','environment','sensors','sensor_data',
+    'traffic','traffic_data','traffic_incidents','road_traffic','incidents',
+    'energy','energy_grid','energy_readings','power','electricity','grid',
+    'transport','transport_data','bus_routes','routes','transit','passengers',
+    'alerts','notifications','events','logs','city_alerts',
+    'readings','data','metrics','records','nagpur'
+  ];
+  const found = [];
+  for (const t of candidates) {
+    try {
+      const { error } = await DB.client.from(t).select('*').limit(1);
+      if (!error) found.push(t);
+    } catch(_) {}
+  }
+  return found;
+}
+
+// ── AUTO-MAP TABLES TO DOMAINS ──
+function autoMapTables() {
+  const t = DB.tables;
+  const find = (...keys) => t.find(n => keys.some(k => n.toLowerCase().includes(k))) || null;
+  DB.tableMap.aqi       = find('aqi','air','environment','sensor','reading');
+  DB.tableMap.traffic   = find('traffic','road','vehicle','congestion');
+  DB.tableMap.energy    = find('energy','power','grid','electric','msedcl');
+  DB.tableMap.transport = find('transport','transit','bus','route','passenger');
+  DB.tableMap.alerts    = find('alert','notification','incident','event','log');
+  DB.tableMap.incidents = find('incident','event','issue','problem') || DB.tableMap.alerts;
+
+  // Update mapping UI
+  for (const [k,v] of Object.entries(DB.tableMap)) {
+    const el = document.getElementById('map-'+k);
+    if (el && v) el.value = v;
+  }
+  document.getElementById('db-mapping-section').style.display = 'block';
+}
+
+// ── CONNECT & START REALTIME ──
+async function dbConnect() {
+  DB.connected = true;
+  DB.simMode = false;
+  setChip('connected', 'DB LIVE');
+
+  // Update config modal status
+  setDBStatus('ok', `✅ Connected — ${DB.tables.length} table${DB.tables.length!==1?'s':''} found: ${DB.tables.join(', ')}`);
+  renderTableList();
+
+  // Start realtime subscriptions
+  dbSubscribeRealtime();
+
+  // Initial data fetch
+  await dbRefreshAll();
+}
+
+// ── REALTIME SUBSCRIPTIONS ──
+function dbSubscribeRealtime() {
+  // Unsubscribe previous
+  DB.subscriptions.forEach(s => s.unsubscribe());
+  DB.subscriptions = [];
+
+  const subscribe = (tableName, handler) => {
+    if (!tableName) return;
+    try {
+      const ch = DB.client
+        .channel('realtime-' + tableName)
+        .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, payload => {
+          console.log('[Supabase RT]', tableName, payload.eventType);
+          handler(payload);
+        })
+        .subscribe();
+      DB.subscriptions.push(ch);
+    } catch(e) { console.warn('Realtime sub failed for', tableName, e); }
+  };
+
+  subscribe(DB.tableMap.aqi, () => dbFetchAQI());
+  subscribe(DB.tableMap.traffic, () => dbFetchTraffic());
+  subscribe(DB.tableMap.energy, () => dbFetchEnergy());
+  subscribe(DB.tableMap.transport, () => dbFetchTransport());
+  subscribe(DB.tableMap.alerts, payload => dbHandleAlertInsert(payload));
+}
+
+// ── FETCH ALL DATA ──
+async function dbRefreshAll() {
+  await Promise.allSettled([
+    dbFetchAQI(),
+    dbFetchTraffic(),
+    dbFetchEnergy(),
+    dbFetchTransport(),
+    dbFetchAlerts(),
+  ]);
+  refreshOverview();
+}
+
+// ── HELPER: guess numeric column value ──
+function guessVal(row, keys, fallback) {
+  if (!row) return fallback;
+  for (const k of keys) {
+    const found = Object.keys(row).find(c => c.toLowerCase() === k.toLowerCase());
+    if (found && row[found] !== null && row[found] !== undefined) {
+      const v = parseFloat(row[found]);
+      if (!isNaN(v)) return v;
+    }
+  }
+  // Try any numeric column
+  for (const [k, v] of Object.entries(row)) {
+    if (typeof v === 'number' && !isNaN(v) && v > 0) return v;
+  }
+  return fallback;
+}
+function guessStr(row, keys, fallback='—') {
+  if (!row) return fallback;
+  for (const k of keys) {
+    const found = Object.keys(row).find(c => c.toLowerCase() === k.toLowerCase());
+    if (found && row[found]) return String(row[found]);
+  }
+  return fallback;
+}
+
+// ── FETCH AQI ──
+async function dbFetchAQI() {
+  const tbl = DB.tableMap.aqi;
+  if (!tbl) return;
+  try {
+    const { data, error } = await DB.client
+      .from(tbl).select('*').order('created_at', { ascending: false }).limit(20);
+    if (error || !data || !data.length) return;
+
+    const latest = data[0];
+    const aqi = guessVal(latest, DB.colGuess.aqi, S.aqi || 85);
+    S.aqi = Math.round(aqi);
+
+    // Build 7-point trend from latest rows
+    const trend = data.slice(0, 7).reverse().map(r => guessVal(r, DB.colGuess.aqi, S.aqi));
+    S.dbData = S.dbData || {};
+    S.dbData.aqiTrend = trend;
+    S.dbData.aqiZones = data.map(r => ({
+      zone: guessStr(r, DB.colGuess.zone, 'Nagpur'),
+      aqi:  Math.round(guessVal(r, DB.colGuess.aqi, 85))
+    }));
+
+    document.getElementById('s-aqi').textContent = S.aqi;
+    document.getElementById('s-aqi').style.color = aqiColor(S.aqi);
+    document.getElementById('s-aqi-label').textContent = aqiLabel(S.aqi);
+    showDBToast('💨 AQI data loaded from Supabase');
+  } catch(e) { console.warn('dbFetchAQI error:', e); }
+}
+
+// ── FETCH TRAFFIC ──
+async function dbFetchTraffic() {
+  const tbl = DB.tableMap.traffic;
+  if (!tbl) return;
+  try {
+    const { data, error } = await DB.client
+      .from(tbl).select('*').order('created_at', { ascending: false }).limit(20);
+    if (error || !data || !data.length) return;
+
+    const latest = data[0];
+    const vehicles = guessVal(latest, DB.colGuess.traffic, 700);
+    S.dbData = S.dbData || {};
+    S.dbData.trafficPeak = Math.round(vehicles);
+    S.dbData.trafficTrend = data.slice(0,7).reverse().map(r => Math.round(guessVal(r, DB.colGuess.traffic, 600)));
+    S.dbData.trafficRoads = data.map(r => ({
+      name: guessStr(r, DB.colGuess.road, guessStr(r, DB.colGuess.zone, 'Road')),
+      load: Math.min(100, Math.round(guessVal(r, DB.colGuess.traffic, 500)/10)),
+      status: guessStr(r, DB.colGuess.status, 'normal')
+    }));
+
+    document.getElementById('s-traffic').textContent = S.dbData.trafficPeak;
+    const peak = S.dbData.trafficPeak;
+    const tt = document.getElementById('s-traffic-t');
+    tt.textContent = peak>800?'▲ Heavy':peak>600?'→ Moderate':'▼ Clear';
+    tt.className = 'stat-trend '+(peak>800?'trend-down':peak>600?'trend-neutral':'trend-up');
+    showDBToast('🚦 Traffic data loaded from Supabase');
+  } catch(e) { console.warn('dbFetchTraffic error:', e); }
+}
+
+// ── FETCH ENERGY ──
+async function dbFetchEnergy() {
+  const tbl = DB.tableMap.energy;
+  if (!tbl) return;
+  try {
+    const { data, error } = await DB.client
+      .from(tbl).select('*').order('created_at', { ascending: false }).limit(24);
+    if (error || !data || !data.length) return;
+
+    const latest = data[0];
+    const mw = guessVal(latest, DB.colGuess.energy, 380);
+    S.dbData = S.dbData || {};
+    S.dbData.energyPeak = Math.round(mw);
+    S.dbData.energyTrend = data.slice(0,24).reverse().map(r => Math.round(guessVal(r, DB.colGuess.energy, 300)));
+
+    document.getElementById('s-energy').textContent = S.dbData.energyPeak + ' MW';
+    showDBToast('⚡ Energy data loaded from Supabase');
+  } catch(e) { console.warn('dbFetchEnergy error:', e); }
+}
+
+// ── FETCH TRANSPORT ──
+async function dbFetchTransport() {
+  const tbl = DB.tableMap.transport;
+  if (!tbl) return;
+  try {
+    const { data, error } = await DB.client
+      .from(tbl).select('*').order('created_at', { ascending: false }).limit(20);
+    if (error || !data || !data.length) return;
+
+    const total = data.reduce((sum, r) => sum + guessVal(r, DB.colGuess.transport, 0), 0);
+    S.dbData = S.dbData || {};
+    S.dbData.transportTotal = Math.round(total);
+    S.dbData.routes = data.map(r => ({
+      name:   guessStr(r, ['route','name','route_name','line'], 'Route'),
+      pax:    Math.round(guessVal(r, DB.colGuess.transport, 1000)),
+      status: guessStr(r, DB.colGuess.status, 'ON TIME')
+    }));
+
+    document.getElementById('s-transport').textContent = (S.dbData.transportTotal/1000).toFixed(1)+'K';
+    showDBToast('🚌 Transport data loaded from Supabase');
+  } catch(e) { console.warn('dbFetchTransport error:', e); }
+}
+
+// ── FETCH ALERTS ──
+async function dbFetchAlerts() {
+  const tbl = DB.tableMap.alerts || DB.tableMap.incidents;
+  if (!tbl) return;
+  try {
+    const { data, error } = await DB.client
+      .from(tbl).select('*').order('created_at', { ascending: false }).limit(15);
+    if (error || !data || !data.length) return;
+
+    const mapped = data.map(r => ({
+      level: guessStr(r, DB.colGuess.level, 'normal').toLowerCase()
+              .replace(/high|critical|emergency|red/i,'critical')
+              .replace(/medium|warning|amber|orange/i,'warning')
+              .replace(/low|info|green|normal|ok/i,'normal'),
+      dept:  guessStr(r, DB.colGuess.dept, 'NMC'),
+      msg:   guessStr(r, DB.colGuess.msg, 'City alert received'),
+      time:  new Date(r.created_at || Date.now()).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})
+    }));
+
+    // Prepend DB alerts
+    mapped.forEach(a => S.alerts.unshift(a));
+    if (S.alerts.length > 20) S.alerts.length = 20;
+    renderAlerts(S.alerts, 'ov-alerts');
+    const ct = S.alerts.filter(x=>x.level!=='normal').length;
+    document.getElementById('alert-count').textContent = Math.min(ct,9);
+  } catch(e) { console.warn('dbFetchAlerts error:', e); }
+}
+
+// ── REALTIME ALERT INSERT HANDLER ──
+function dbHandleAlertInsert(payload) {
+  if (payload.eventType !== 'INSERT') return;
+  const r = payload.new;
+  const alert = {
+    level: guessStr(r, DB.colGuess.level, 'normal').toLowerCase()
+            .replace(/high|critical|emergency/i,'critical')
+            .replace(/medium|warning/i,'warning')
+            .replace(/low|info|normal|ok/i,'normal'),
+    dept:  guessStr(r, DB.colGuess.dept, 'NMC'),
+    msg:   guessStr(r, DB.colGuess.msg, 'New alert from database'),
+    time:  new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})
+  };
+  S.alerts.unshift(alert);
+  if (S.alerts.length > 20) S.alerts.length = 20;
+  renderAlerts(S.alerts, 'ov-alerts');
+  showDBToast('🔔 New alert from Supabase: ' + alert.msg.substring(0,40));
+}
+
+// ── INSERT HELPERS (for Actions page assign) ──
+async function dbInsertAlert(dept, level, msg) {
+  const tbl = DB.tableMap.alerts;
+  if (!tbl || !DB.connected) return;
+  try {
+    await DB.client.from(tbl).insert([{ department: dept, level, message: msg, created_at: new Date().toISOString() }]);
+  } catch(e) { console.warn('dbInsertAlert error:', e); }
+}
+
+// ── OVERRIDE refreshOverview TO USE DB DATA ──
+const _origRefreshOverview = refreshOverview;
+refreshOverview = async function() {
+  if (DB.connected && !DB.simMode) {
+    // Fetch fresh data, then fall through to original for charts/scores
+    await Promise.allSettled([dbFetchAQI(), dbFetchTraffic(), dbFetchEnergy(), dbFetchTransport()]);
+  }
+  await _origRefreshOverview.apply(this, arguments);
+  if (DB.connected && !DB.simMode) updateChartsFromDB();
+};
+
+// ── UPDATE CHARTS FROM DB DATA ──
+function updateChartsFromDB() {
+  const d = S.dbData || {};
+  const labels7 = ['T-6','T-5','T-4','T-3','T-2','T-1','Now'];
+
+  if (d.aqiTrend && d.aqiTrend.length >= 2) {
+    const trend = d.aqiTrend.slice(-7);
+    while (trend.length < 7) trend.unshift(trend[0]);
+    barChart('ov-aqi-chart', labels7, trend, 'rgba(255,106,0,0.5)', 'AQI');
+  }
+  if (d.trafficTrend && d.trafficTrend.length >= 2) {
+    const trend = d.trafficTrend.slice(-7);
+    while (trend.length < 7) trend.unshift(trend[0]);
+    lineChart('ov-traffic-chart', labels7, [{
+      label:'Vehicles/hr', data: trend,
+      borderColor:'rgba(0,200,255,0.8)', backgroundColor:'rgba(0,200,255,0.05)',
+      borderWidth:2, tension:.4, fill:true, pointRadius:4
+    }]);
+  }
+}
+
+// ── FALLBACK TO SIMULATION ──
+function dbFallbackSim(reason) {
+  DB.simMode = true;
+  DB.connected = false;
+  setChip('simulated', 'SIMULATED');
+  setDBStatus('err', '⚠️ ' + reason + ' — Running on simulated data.');
+  console.warn('[Supabase] Falling back to simulation:', reason);
+}
+
+function useSim() {
+  dbFallbackSim('Manual simulation mode selected.');
+  closeDBConfig();
+}
+
+// ── TEST & RECONNECT ──
+async function testAndConnect() {
+  const url = document.getElementById('dbcfg-url').value.trim();
+  const key = document.getElementById('dbcfg-key').value.trim();
+  if (!url || !key) { setDBStatus('err','⚠️ Please enter both URL and API key.'); return; }
+
+  DB.url = url; DB.key = key;
+  setDBStatus('info','⏳ Testing connection…');
+
+  // Apply custom table mapping
+  for (const domain of ['aqi','traffic','energy','transport','alerts','incidents']) {
+    const v = document.getElementById('map-'+domain)?.value?.trim();
+    if (v) DB.tableMap[domain] = v;
+  }
+
+  try {
+    DB.client = window.supabase.createClient(url, key);
+    // Test with first mapped table or probe
+    const testTable = Object.values(DB.tableMap).find(t => t) || 'aqi';
+    const { error } = await DB.client.from(testTable).select('*').limit(1);
+    if (error) throw error;
+    await dbDiscover();
+    closeDBConfig();
+  } catch(e) {
+    setDBStatus('err', '❌ Connection failed: ' + (e.message || e));
+  }
+}
+
+// ── UI HELPERS ──
+function setChip(state, label) {
+  const chip = document.getElementById('db-chip');
+  const lbl  = document.getElementById('db-chip-label');
+  if (chip) chip.className = 'db-chip ' + state;
+  if (lbl)  lbl.textContent = label;
+}
+function setDBStatus(type, msg) {
+  const el = document.getElementById('dbcfg-status-msg');
+  if (!el) return;
+  el.className = 'dbcfg-status ' + type;
+  el.textContent = msg;
+}
+function openDBConfig()  { document.getElementById('dbcfg-overlay').classList.add('open'); }
+function closeDBConfig() { document.getElementById('dbcfg-overlay').classList.remove('open'); }
+
+function renderTableList() {
+  const el = document.getElementById('db-table-list');
+  if (!el) return;
+  document.getElementById('db-table-count-label').textContent = `(${DB.tables.length} found)`;
+  if (!DB.tables.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-family:var(--fm);font-size:11px;padding:8px 0;">No tables found in public schema.</div>';
+    return;
+  }
+  el.innerHTML = DB.tables.map(t => {
+    const domain = Object.entries(DB.tableMap).find(([,v])=>v===t)?.[0] || '';
+    const badge = domain ? `<span style="font-size:8px;padding:2px 7px;border-radius:10px;background:rgba(0,200,255,0.1);color:var(--cyan);font-family:var(--fm);letter-spacing:1px;">${domain.toUpperCase()}</span>` : '';
+    return `<div class="db-table-row"><span class="db-table-name">📋 ${t}</span>${badge}</div>`;
+  }).join('');
+}
+
+// ── TOAST NOTIFICATION ──
+let toastTimeout;
+function showDBToast(msg) {
+  let toast = document.getElementById('db-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'db-toast';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);' +
+      'background:rgba(4,14,28,0.97);border:1px solid rgba(0,200,255,0.3);border-radius:8px;' +
+      'padding:10px 20px;font-family:"Share Tech Mono",monospace;font-size:11px;color:#00c8ff;' +
+      'z-index:5000;letter-spacing:1px;transition:opacity .4s;white-space:nowrap;' +
+      'box-shadow:0 0 20px rgba(0,200,255,0.15);';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => { toast.style.opacity = '0'; }, 3500);
+}
+
+// ── BOOT: start DB init after page load ──
+window.addEventListener('load', function() {
+  setTimeout(dbInit, 800); // slight delay so Supabase SDK fully loads
+});
+
 </script>
+
+<!-- ══ SUPABASE CONFIG MODAL ══ -->
+<div class="dbcfg-overlay" id="dbcfg-overlay" onclick="if(event.target===this)closeDBConfig()">
+  <div class="dbcfg-box">
+    <div class="dbcfg-head">
+      <div class="dbcfg-title">🗄️ SUPABASE CONNECTION</div>
+      <button class="dbcfg-close" onclick="closeDBConfig()">✕</button>
+    </div>
+    <div class="dbcfg-body">
+      <div class="dbcfg-section">
+        <div class="dbcfg-section-title">Connection Status</div>
+        <div class="dbcfg-status info" id="dbcfg-status-msg">Initializing connection to Supabase…</div>
+      </div>
+      <div class="dbcfg-section">
+        <div class="dbcfg-section-title">Credentials</div>
+        <div class="dbcfg-field">
+          <div class="dbcfg-label">Project URL</div>
+          <input class="dbcfg-input" id="dbcfg-url" placeholder="https://xxxx.supabase.co" value="https://qfsmdsadkkotaeiyozxl.supabase.co"/>
+        </div>
+        <div class="dbcfg-field" style="margin-bottom:0;">
+          <div class="dbcfg-label">Anon / Publishable Key</div>
+          <input class="dbcfg-input" id="dbcfg-key" placeholder="sb_publishable_..." value="sb_publishable_AjyuGtPMqf5fLrbZbzEs3w_Ab4X2_GW"/>
+        </div>
+      </div>
+      <div class="dbcfg-section">
+        <div class="dbcfg-section-title">Discovered Tables <span style="color:var(--muted);font-size:9px;" id="db-table-count-label"></span></div>
+        <div id="db-table-list" style="min-height:40px;">
+          <div style="color:var(--muted);font-family:var(--fm);font-size:11px;padding:8px 0;">Scanning your database…</div>
+        </div>
+      </div>
+      <div class="dbcfg-section" id="db-mapping-section" style="display:none;">
+        <div class="dbcfg-section-title">Table Mapping</div>
+        <div class="dbcfg-grid">
+          <div class="dbcfg-field">
+            <div class="dbcfg-label">AQI Table</div>
+            <input class="dbcfg-input" id="map-aqi" placeholder="e.g. aqi_readings"/>
+          </div>
+          <div class="dbcfg-field">
+            <div class="dbcfg-label">Traffic Table</div>
+            <input class="dbcfg-input" id="map-traffic" placeholder="e.g. traffic"/>
+          </div>
+          <div class="dbcfg-field">
+            <div class="dbcfg-label">Energy Table</div>
+            <input class="dbcfg-input" id="map-energy" placeholder="e.g. energy_grid"/>
+          </div>
+          <div class="dbcfg-field">
+            <div class="dbcfg-label">Transport Table</div>
+            <input class="dbcfg-input" id="map-transport" placeholder="e.g. transport"/>
+          </div>
+          <div class="dbcfg-field">
+            <div class="dbcfg-label">Alerts Table</div>
+            <input class="dbcfg-input" id="map-alerts" placeholder="e.g. alerts"/>
+          </div>
+          <div class="dbcfg-field">
+            <div class="dbcfg-label">Incidents Table</div>
+            <input class="dbcfg-input" id="map-incidents" placeholder="e.g. incidents"/>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="dbcfg-footer">
+      <button class="dbcfg-btn dbcfg-btn-secondary" onclick="useSim()">Use Simulation</button>
+      <button class="dbcfg-btn dbcfg-btn-primary" onclick="testAndConnect()">⚡ TEST & CONNECT</button>
+    </div>
+  </div>
+</div>
+
 </body>
 
 </html>
